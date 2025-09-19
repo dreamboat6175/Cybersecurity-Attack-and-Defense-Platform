@@ -1,0 +1,73 @@
+/* 全局样式 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0f1419;
+    color: #e5e7eb;
+    line-height: 1.6;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1a202c;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #4a5568;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #718096;
+}
+
+/* 自定义类 */
+.flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.text-primary {
+    color: #3b82f6;
+}
+
+.text-success {
+    color: #10b981;
+}
+
+.text-warning {
+    color: #f59e0b;
+}
+
+.text-danger {
+    color: #ef4444;
+}
+
+/* Ant Design 暗色主题覆盖 */
+.ant-layout {
+    background: #0f1419 !important;
+}
+
+.ant-layout-sider {
+    background: #1a202c !important;
+}
+
+.ant-menu-dark {
+    background: #1a202c !important;
+}
+
+.ant-card {
+    background: #1a202c !important;
+    border-color: #374151 !important;
+}
