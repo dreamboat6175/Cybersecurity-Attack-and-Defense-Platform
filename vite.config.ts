@@ -12,5 +12,9 @@ export default defineConfig({
     server: {
         port: 3000,
         open: true
+    },
+    // 添加这个配置来帮助解析 .vue 文件
+    optimizeDeps: {
+        include: ['vue', 'vue-router', 'pinia', 'ant-design-vue']
     }
 })

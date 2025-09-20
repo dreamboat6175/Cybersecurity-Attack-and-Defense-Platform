@@ -1,69 +1,37 @@
 <template>
   <div class="login-container">
     <div class="login-card">
-      <div class="login-header">
-        <h1>🔐 网络安全攻防平台</h1>
-        <p>Security Attack & Defense Platform</p>
+      <h1>🔐 网络安全攻防平台</h1>
+      <p>Security Attack & Defense Platform</p>
+
+      <div class="login-form">
+        <div class="form-item">
+          <label>用户名:</label>
+          <input
+              v-model="form.username"
+              type="text"
+              placeholder="请输入用户名"
+              class="form-input"
+          />
+        </div>
+
+        <div class="form-item">
+          <label>密码:</label>
+          <input
+              v-model="form.password"
+              type="password"
+              placeholder="请输入密码"
+              class="form-input"
+          />
+        </div>
+
+        <button @click="handleLogin" class="login-btn" :disabled="loading">
+          {{ loading ? '登录中...' : '登录' }}
+        </button>
       </div>
 
-      <a-form
-          :model="form"
-          @finish="handleLogin"
-          layout="vertical"
-          class="login-form"
-      >
-        <a-form-item
-            label="用户名"
-            name="username"
-            :rules="[{ required: true, message: '请输入用户名' }]"
-        >
-          <a-input
-              v-model:value="form.username"
-              placeholder="请输入用户名"
-              size="large"
-          >
-            <template #prefix>
-              <UserOutlined />
-            </template>
-          </a-input>
-        </a-form-item>
-
-        <a-form-item
-            label="密码"
-            name="password"
-            :rules="[{ required: true, message: '请输入密码' }]"
-        >
-          <a-input-password
-              v-model:value="form.password"
-              placeholder="请输入密码"
-              size="large"
-          >
-            <template #prefix>
-              <LockOutlined />
-            </template>
-          </a-input-password>
-        </a-form-item>
-
-        <a-form-item>
-          <a-button
-              type="primary"
-              html-type="submit"
-              size="large"
-              :loading="loading"
-              block
-          >
-            登录
-          </a-button>
-        </a-form-item>
-      </a-form>
-
       <div class="login-tips">
-        <a-alert
-            message="演示账号"
-            description="用户名: admin, 密码: admin123"
-            type="info"
-            show-icon
-        />
+        <p>演示账号: admin / admin123</p>
       </div>
     </div>
   </div>
@@ -72,13 +40,8 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
-import { UserOutlined, LockOutlined } from '@ant-design/icons-vue'
-import { useAuthStore } from '@/store'
 
 const router = useRouter()
-const authStore = useAuthStore()
-
 const loading = ref(false)
 const form = reactive({
   username: '',
@@ -86,13 +49,27 @@ const form = reactive({
 })
 
 const handleLogin = async () => {
+  console.log('尝试登录:', form)
+
+  if (!form.username || !form.password) {
+    alert('请输入用户名和密码')
+    return
+  }
+
   loading.value = true
+
   try {
-    await authStore.login(form.username, form.password)
-    message.success('登录成功')
-    router.push('/dashboard')
-  } catch (error: any) {
-    message.error(error.message || '登录失败')
+    // 简单的模拟登录
+    if (form.username === 'admin' && form.password === 'admin123') {
+      localStorage.setItem('token', 'mock-token-123')
+      alert('登录成功')
+      router.push('/dashboard')
+    } else {
+      alert('用户名或密码错误')
+    }
+  } catch (error) {
+    console.error('登录错误:', error)
+    alert('登录失败')
   } finally {
     loading.value = false
   }
@@ -117,29 +94,76 @@ const handleLogin = async () => {
   padding: 40px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
   border: 1px solid #374151;
-}
-
-.login-header {
   text-align: center;
-  margin-bottom: 32px;
 }
 
-.login-header h1 {
+.login-card h1 {
   color: #e5e7eb;
   margin-bottom: 8px;
   font-size: 24px;
 }
 
-.login-header p {
+.login-card p {
   color: #9ca3af;
   font-size: 14px;
+  margin-bottom: 32px;
 }
 
 .login-form {
   margin-bottom: 24px;
 }
 
+.form-item {
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.form-item label {
+  display: block;
+  color: #e5e7eb;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 12px;
+  background: #374151;
+  border: 1px solid #4b5563;
+  border-radius: 6px;
+  color: #e5e7eb;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.login-btn {
+  width: 100%;
+  padding: 12px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.login-btn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.login-btn:disabled {
+  background: #6b7280;
+  cursor: not-allowed;
+}
+
 .login-tips {
-  margin-top: 20px;
+  color: #9ca3af;
+  font-size: 12px;
 }
 </style>
