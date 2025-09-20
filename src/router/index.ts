@@ -24,7 +24,7 @@ const routes: RouteRecordRaw[] = [
 ]
 
 const router = createRouter({
-    history: createWebHashHistory(), // 使用Hash模式
+    history: createWebHashHistory(), // 使用Hash模式避免服务器配置问题
     routes
 })
 
