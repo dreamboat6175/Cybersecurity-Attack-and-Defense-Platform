@@ -1,10 +1,10 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 
 const routes: RouteRecordRaw[] = [
     {
         path: '/',
-        redirect: '/login' // 先重定向到 login 页面，确保有内容显示
+        redirect: '/login'
     },
     {
         path: '/login',
@@ -17,7 +17,6 @@ const routes: RouteRecordRaw[] = [
         component: () => import('../views/Dashboard.vue'),
         meta: { requiresAuth: true }
     },
-    // 添加一个 catch-all 路由来处理 404
     {
         path: '/:pathMatch(.*)*',
         redirect: '/login'
@@ -25,13 +24,13 @@ const routes: RouteRecordRaw[] = [
 ]
 
 const router = createRouter({
-    history: createWebHistory(),
+    history: createWebHashHistory(), // 使用Hash模式
     routes
 })
 
-// 简化的路由守卫，先确保基本功能正常
+// 路由守卫
 router.beforeEach((to, from, next) => {
-    console.log('导航到:', to.path) // 添加调试信息
+    console.log('导航到:', to.path)
 
     const token = localStorage.getItem('token')
 
@@ -47,7 +46,6 @@ router.beforeEach((to, from, next) => {
     }
 })
 
-// 添加路由错误处理
 router.onError((error) => {
     console.error('路由错误:', error)
 })
