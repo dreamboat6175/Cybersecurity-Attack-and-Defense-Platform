@@ -1,364 +1,313 @@
+// src/composables/useStatusColors.ts
 import { computed } from 'vue'
-import {
-    STATUS_COLORS,
-    NETWORK_COLORS,
-    DEVICE_TYPE_COLORS,
-    ANIMATION_COLORS,
-    GRADIENTS,
-    getStatusColor,
-    getNetworkColor,
-    getDeviceTypeColor,
-    withOpacity
-} from '../constants/colors'
-import type { DeviceStatus, LinkStatus, DeviceType, NetworkType } from '../types/devices'
+import type { DeviceStatus, LinkStatus, NetworkType } from '../types/devices'
 
+// 状态颜色常量
+export const STATUS_COLORS = {
+    normal: '#2ECC71',    // 科技绿
+    warning: '#F39C12',   // 警示黄
+    critical: '#E74C3C',  // 关键红
+    offline: '#95A5A6',   // 中性灰
+    active: '#2ECC71',    // 活跃状态
+    down: '#E74C3C',      // 中断状态
+    unknown: '#6C757D'    // 未知状态
+} as const
+
+// 网络颜色常量 (ZC子系统专用)
+export const NETWORK_COLORS = {
+    A: '#64FFDA',  // 数字薄荷绿 (A网)
+    B: '#FF2DF7'   // 电光洋红 (B网)
+} as const
+
+// 状态边框颜色
+export const STATUS_STROKE_COLORS = {
+    normal: '#27AE60',
+    warning: '#E67E22',
+    critical: '#C0392B',
+    offline: '#7F8C8D',
+    active: '#27AE60',
+    down: '#C0392B',
+    unknown: '#5D6D7E'
+} as const
+
+// src/composables/useStatusColors.ts
+import { computed } from 'vue'
+import type { DeviceStatus, LinkStatus, NetworkType } from '../types/devices'
+
+// 状态颜色常量
+export const STATUS_COLORS = {
+    normal: '#2ECC71',    // 科技绿
+    warning: '#F39C12',   // 警示黄
+    critical: '#E74C3C',  // 关键红
+    offline: '#95A5A6',   // 中性灰
+    active: '#2ECC71',    // 活跃状态
+    down: '#E74C3C',      // 中断状态
+    unknown: '#6C757D'    // 未知状态
+} as const
+
+// 网络颜色常量 (ZC子系统专用)
+export const NETWORK_COLORS = {
+    A: '#64FFDA',  // 数字薄荷绿 (A网)
+    B: '#FF2DF7'   // 电光洋红 (B网)
+} as const
+
+// 状态边框颜色
+export const STATUS_STROKE_COLORS = {
+    normal: '#27AE60',
+    warning: '#E67E22',
+    critical: '#C0392B',
+    offline: '#7F8C8D',
+    active: '#27AE60',
+    down: '#C0392B',
+    unknown: '#5D6D7E'
+} as const
+
+// 状态背景颜色 (带透明度)
+export const STATUS_BACKGROUND_COLORS = {
+    normal: 'rgba(46, 204, 113, 0.1)',
+    warning: 'rgba(243, 156, 18, 0.1)',
+    critical: 'rgba(231, 76, 60, 0.1)',
+    offline: 'rgba(149, 165, 166, 0.1)',
+    active: 'rgba(46, 204, 113, 0.1)',
+    down: 'rgba(231, 76, 60, 0.1)',
+    unknown: 'rgba(108, 117, 125, 0.1)'
+} as const
+
+// 状态渐变色
+export const STATUS_GRADIENTS = {
+    normal: 'linear-gradient(135deg, #2ECC71 0%, #27AE60 100%)',
+    warning: 'linear-gradient(135deg, #F39C12 0%, #E67E22 100%)',
+    critical: 'linear-gradient(135deg, #E74C3C 0%, #C0392B 100%)',
+    offline: 'linear-gradient(135deg, #95A5A6 0%, #7F8C8D 100%)',
+    active: 'linear-gradient(135deg, #2ECC71 0%, #27AE60 100%)',
+    down: 'linear-gradient(135deg, #E74C3C 0%, #C0392B 100%)',
+    unknown: 'linear-gradient(135deg, #6C757D 0%, #5D6D7E 100%)'
+} as const
+
+/**
+ * 状态颜色管理 Composable
+ */
 export function useStatusColors() {
-
-    // ===== 节点颜色计算 =====
-
-    // 获取节点颜色 (基于状态)
-    function getNodeColor(status: DeviceStatus): string {
-        return getStatusColor(status)
+    /**
+     * 获取状态主色
+     */
+    function getStatusColor(status: DeviceStatus | LinkStatus): string {
+        return STATUS_COLORS[status] || STATUS_COLORS.unknown
     }
 
-    // 获取节点边框颜色
-    function getNodeBorderColor(status: DeviceStatus, isSelected: boolean = false, isHovered: boolean = false): string {
-        if (isSelected) {
-            return ANIMATION_COLORS.selection.node
+    /**
+     * 获取状态边框色
+     */
+    function getStatusStrokeColor(status: DeviceStatus | LinkStatus): string {
+        return STATUS_STROKE_COLORS[status] || STATUS_STROKE_COLORS.unknown
+    }
+
+    /**
+     * 获取状态背景色
+     */
+    function getStatusBackgroundColor(status: DeviceStatus | LinkStatus): string {
+        return STATUS_BACKGROUND_COLORS[status] || STATUS_BACKGROUND_COLORS.unknown
+    }
+
+    /**
+     * 获取状态渐变
+     */
+    function getStatusGradient(status: DeviceStatus | LinkStatus): string {
+        return STATUS_GRADIENTS[status] || STATUS_GRADIENTS.unknown
+    }
+
+    /**
+     * 获取网络颜色
+     */
+    function getNetworkColor(network: NetworkType): string {
+        return NETWORK_COLORS[network] || '#64FFDA'
+    }
+
+    /**
+     * 获取网络颜色 (带透明度)
+     */
+    function getNetworkColorWithOpacity(network: NetworkType, opacity: number = 0.8): string {
+        const color = getNetworkColor(network)
+        // 将十六进制转换为 rgba
+        const r = parseInt(color.slice(1, 3), 16)
+        const g = parseInt(color.slice(3, 5), 16)
+        const b = parseInt(color.slice(5, 7), 16)
+        return `rgba(${r}, ${g}, ${b}, ${opacity})`
+    }
+
+    /**
+     * 获取状态优先级 (用于排序)
+     */
+    function getStatusPriority(status: DeviceStatus | LinkStatus): number {
+        const priorities = {
+            critical: 4,
+            down: 4,
+            warning: 3,
+            unknown: 2,
+            offline: 1,
+            normal: 0,
+            active: 0
         }
-        if (isHovered) {
-            return ANIMATION_COLORS.hover.node
+        return priorities[status] ?? 0
+    }
+
+    /**
+     * 判断状态是否为健康状态
+     */
+    function isHealthyStatus(status: DeviceStatus | LinkStatus): boolean {
+        return status === 'normal' || status === 'active'
+    }
+
+    /**
+     * 判断状态是否为故障状态
+     */
+    function isFaultStatus(status: DeviceStatus | LinkStatus): boolean {
+        return status === 'critical' || status === 'down'
+    }
+
+    /**
+     * 判断状态是否为告警状态
+     */
+    function isWarningStatus(status: DeviceStatus | LinkStatus): boolean {
+        return status === 'warning'
+    }
+
+    /**
+     * 获取状态文本描述
+     */
+    function getStatusText(status: DeviceStatus | LinkStatus): string {
+        const statusTexts = {
+            normal: '正常',
+            warning: '告警',
+            critical: '故障',
+            offline: '离线',
+            active: '活跃',
+            down: '中断',
+            unknown: '未知'
         }
-        return getStatusColor(status)
+        return statusTexts[status] || '未知'
     }
 
-    // 获取节点辉光效果
-    function getNodeGlow(status: DeviceStatus, intensity: number = 1): string {
-        const baseColor = getStatusColor(status)
-        const glowSize = 20 * intensity
-        return `0 0 ${glowSize}px ${withOpacity(baseColor, 0.6)}`
+    /**
+     * 获取状态CSS类名
+     */
+    function getStatusClass(status: DeviceStatus | LinkStatus): string {
+        return `status-${status}`
     }
 
-    // 获取节点渐变背景
-    function getNodeGradient(status: DeviceStatus): string {
-        return GRADIENTS.node[status] || GRADIENTS.node.offline
+    /**
+     * 根据多个状态计算综合状态
+     */
+    function aggregateStatus(statuses: (DeviceStatus | LinkStatus)[]): DeviceStatus | LinkStatus {
+        if (statuses.length === 0) return 'unknown'
+
+        // 按优先级排序，返回最高优先级的状态
+        const sortedStatuses = statuses.sort((a, b) =>
+            getStatusPriority(b) - getStatusPriority(a)
+        )
+
+        return sortedStatuses[0]
     }
 
-    // 计算节点显示颜色 (综合考虑状态、选中、悬浮等)
-    function computeNodeDisplayColor(
-        status: DeviceStatus,
-        isSelected: boolean = false,
-        isHovered: boolean = false,
-        opacity: number = 1
-    ): {
-        fill: string
-        stroke: string
-        shadow: string
-        gradient: string
-    } {
-        const baseColor = getStatusColor(status)
-        const strokeColor = getNodeBorderColor(status, isSelected, isHovered)
-        const shadowColor = getNodeGlow(status, isHovered ? 1.5 : 1)
-        const gradientColor = getNodeGradient(status)
+    /**
+     * 计算健康度评分 (0-100)
+     */
+    function calculateHealthScore(statuses: (DeviceStatus | LinkStatus)[]): number {
+        if (statuses.length === 0) return 100
 
-        return {
-            fill: withOpacity(baseColor, opacity),
-            stroke: strokeColor,
-            shadow: shadowColor,
-            gradient: gradientColor
+        const total = statuses.length
+        const weights = {
+            normal: 100,
+            active: 100,
+            warning: 70,
+            unknown: 50,
+            offline: 30,
+            critical: 0,
+            down: 0
         }
+
+        const totalScore = statuses.reduce((sum, status) => {
+            return sum + (weights[status] ?? 0)
+        }, 0)
+
+        return Math.round(totalScore / total)
     }
 
-    // ===== 链路颜色计算 =====
-
-    // 获取链路颜色 (基于状态)
-    function getLinkColor(status: LinkStatus): string {
-        const colorMap = {
-            active: STATUS_COLORS.normal,
-            warning: STATUS_COLORS.warning,
-            down: STATUS_COLORS.critical,
-            unknown: STATUS_COLORS.offline
+    /**
+     * 获取状态对应的图标
+     */
+    function getStatusIcon(status: DeviceStatus | LinkStatus): string {
+        const icons = {
+            normal: '✅',
+            active: '✅',
+            warning: '⚠️',
+            critical: '🚨',
+            down: '🚨',
+            offline: '📴',
+            unknown: '❓'
         }
-        return colorMap[status] || STATUS_COLORS.offline
+        return icons[status] || '❓'
     }
 
-    // 获取网络链路颜色 (ZC子系统专用)
-    function getNetworkLinkColor(network: NetworkType, status: LinkStatus): string {
-        // 如果链路故障，使用故障颜色
-        if (status === 'down') {
+    /**
+     * 获取网络状态指示器颜色
+     */
+    function getNetworkStatusColor(network: NetworkType, status: LinkStatus): string {
+        const baseColor = getNetworkColor(network)
+
+        if (status === 'down' || status === 'unknown') {
             return STATUS_COLORS.critical
         }
         if (status === 'warning') {
             return STATUS_COLORS.warning
         }
 
-        // 否则使用网络颜色
-        return getNetworkColor(network)
+        return baseColor
     }
 
-    // 获取链路动画颜色
-    function getLinkAnimationColor(status: LinkStatus): string {
-        return ANIMATION_COLORS.flow[status === 'down' ? 'error' : 'normal']
-    }
-
-    // 计算链路显示颜色
-    function computeLinkDisplayColor(
-        status: LinkStatus,
-        network?: NetworkType,
-        isSelected: boolean = false,
-        isHovered: boolean = false,
-        opacity: number = 1
-    ): {
-        stroke: string
-        animation: string
-        width: number
-    } {
-        let strokeColor: string
-
-        if (network) {
-            strokeColor = getNetworkLinkColor(network, status)
-        } else {
-            strokeColor = getLinkColor(status)
-        }
-
-        if (isSelected) {
-            strokeColor = ANIMATION_COLORS.selection.link
-        } else if (isHovered) {
-            strokeColor = ANIMATION_COLORS.hover.link
-        }
-
-        const animationColor = getLinkAnimationColor(status)
-        const width = isSelected ? 4 : isHovered ? 3 : 2
-
-        return {
-            stroke: withOpacity(strokeColor, opacity),
-            animation: animationColor,
-            width
-        }
-    }
-
-    // ===== 设备类型颜色 =====
-
-    // 获取设备图标颜色
-    function getDeviceIconColor(deviceType: DeviceType, status: DeviceStatus): string {
-        // 如果设备故障，使用状态颜色
-        if (status === 'critical' || status === 'warning') {
-            return getStatusColor(status)
-        }
-
-        // 否则使用设备类型颜色
-        return getDeviceTypeColor(deviceType)
-    }
-
-    // ===== 状态指示器颜色 =====
-
-    // 获取状态点颜色
-    function getStatusDotColor(status: DeviceStatus): string {
-        return getStatusColor(status)
-    }
-
-    // 获取状态文本颜色
-    function getStatusTextColor(status: DeviceStatus): string {
-        return getStatusColor(status)
-    }
-
-    // 获取状态背景颜色
-    function getStatusBackgroundColor(status: DeviceStatus, opacity: number = 0.1): string {
-        return withOpacity(getStatusColor(status), opacity)
-    }
-
-    // ===== 动画和过渡颜色 =====
-
-    // 获取呼吸动画颜色 (用于故障节点)
-    function getPulseColors(status: DeviceStatus): { from: string, to: string } {
-        const baseColor = getStatusColor(status)
-        return {
-            from: baseColor,
-            to: withOpacity(baseColor, 0.3)
-        }
-    }
-
-    // 获取数据流动画颜色
-    function getFlowAnimationColor(status: LinkStatus = 'active'): string {
-        return ANIMATION_COLORS.flow[status === 'down' ? 'error' : 'normal']
-    }
-
-    // ===== 主题相关颜色 =====
-
-    // 获取对比色 (用于文本)
-    function getContrastColor(backgroundColor: string): string {
-        // 简单的对比度计算，实际项目中可能需要更复杂的算法
-        const darkColors = [STATUS_COLORS.critical, STATUS_COLORS.offline]
-
-        if (darkColors.includes(backgroundColor)) {
-            return '#FFFFFF'
-        }
-        return '#000000'
-    }
-
-    // 获取悬浮状态颜色
-    function getHoverColor(baseColor: string): string {
-        return withOpacity(baseColor, 0.8)
-    }
-
-    // 获取选中状态颜色
-    function getSelectedColor(baseColor: string): string {
-        return ANIMATION_COLORS.selection.node
-    }
-
-    // ===== 颜色工具函数 =====
-
-    // 颜色插值 (用于动画)
-    function interpolateColor(color1: string, color2: string, factor: number): string {
-        // 简化的颜色插值，实际项目中建议使用专业的颜色库
-        const hex1 = color1.replace('#', '')
-        const hex2 = color2.replace('#', '')
-
-        const r1 = parseInt(hex1.substr(0, 2), 16)
-        const g1 = parseInt(hex1.substr(2, 2), 16)
-        const b1 = parseInt(hex1.substr(4, 2), 16)
-
-        const r2 = parseInt(hex2.substr(0, 2), 16)
-        const g2 = parseInt(hex2.substr(2, 2), 16)
-        const b2 = parseInt(hex2.substr(4, 2), 16)
-
-        const r = Math.round(r1 + (r2 - r1) * factor)
-        const g = Math.round(g1 + (g2 - g1) * factor)
-        const b = Math.round(b1 + (b2 - b1) * factor)
-
-        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
-    }
-
-    // 生成颜色变体 (更亮或更暗)
-    function generateColorVariant(color: string, factor: number): string {
-        // factor > 1 变亮，factor < 1 变暗
-        const hex = color.replace('#', '')
-        const r = Math.min(255, Math.round(parseInt(hex.substr(0, 2), 16) * factor))
-        const g = Math.min(255, Math.round(parseInt(hex.substr(2, 2), 16) * factor))
-        const b = Math.min(255, Math.round(parseInt(hex.substr(4, 2), 16) * factor))
-
-        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
-    }
-
-    // ===== 批量颜色处理 =====
-
-    // 批量计算节点颜色
-    function computeNodesColors(nodes: Array<{
-        id: string
-        status: DeviceStatus
-        deviceType: DeviceType
-        isSelected?: boolean
-        isHovered?: boolean
-    }>) {
-        return nodes.map(node => ({
-            id: node.id,
-            colors: computeNodeDisplayColor(
-                node.status,
-                node.isSelected,
-                node.isHovered
-            ),
-            iconColor: getDeviceIconColor(node.deviceType, node.status)
-        }))
-    }
-
-    // 批量计算链路颜色
-    function computeLinksColors(links: Array<{
-        id: string
-        status: LinkStatus
-        network?: NetworkType
-        isSelected?: boolean
-        isHovered?: boolean
-    }>) {
-        return links.map(link => ({
-            id: link.id,
-            colors: computeLinkDisplayColor(
-                link.status,
-                link.network,
-                link.isSelected,
-                link.isHovered
-            )
-        }))
-    }
-
-    // ===== CSS变量生成 =====
-
-    // 生成CSS自定义属性
-    function generateCSSVariables(): Record<string, string> {
-        return {
-            '--status-normal': STATUS_COLORS.normal,
-            '--status-warning': STATUS_COLORS.warning,
-            '--status-critical': STATUS_COLORS.critical,
-            '--status-offline': STATUS_COLORS.offline,
-            '--network-a': NETWORK_COLORS.a_network,
-            '--network-b': NETWORK_COLORS.b_network,
-            '--animation-selection': ANIMATION_COLORS.selection.node,
-            '--animation-hover': ANIMATION_COLORS.hover.node,
-            '--flow-normal': ANIMATION_COLORS.flow.normal,
-            '--flow-error': ANIMATION_COLORS.flow.error
-        }
-    }
-
-    // ===== 计算属性 =====
-
-    // 所有状态颜色的计算属性
-    const statusColors = computed(() => STATUS_COLORS)
-    const networkColors = computed(() => NETWORK_COLORS)
-    const deviceTypeColors = computed(() => DEVICE_TYPE_COLORS)
-    const animationColors = computed(() => ANIMATION_COLORS)
-
-    // CSS变量的计算属性
-    const cssVariables = computed(() => generateCSSVariables())
-
-    // ===== 返回接口 =====
+    /**
+     * 创建状态颜色的CSS变量对象
+     */
+    const statusColorVars = computed(() => ({
+        '--color-status-normal': STATUS_COLORS.normal,
+        '--color-status-warning': STATUS_COLORS.warning,
+        '--color-status-critical': STATUS_COLORS.critical,
+        '--color-status-offline': STATUS_COLORS.offline,
+        '--color-network-a': NETWORK_COLORS.A,
+        '--color-network-b': NETWORK_COLORS.B
+    }))
 
     return {
-        // 基础颜色常量
-        statusColors,
-        networkColors,
-        deviceTypeColors,
-        animationColors,
+        // 常量
+        STATUS_COLORS,
+        NETWORK_COLORS,
+        STATUS_STROKE_COLORS,
+        STATUS_BACKGROUND_COLORS,
+        STATUS_GRADIENTS,
 
-        // 节点颜色方法
-        getNodeColor,
-        getNodeBorderColor,
-        getNodeGlow,
-        getNodeGradient,
-        computeNodeDisplayColor,
-
-        // 链路颜色方法
-        getLinkColor,
-        getNetworkLinkColor,
-        getLinkAnimationColor,
-        computeLinkDisplayColor,
-
-        // 设备类型颜色
-        getDeviceIconColor,
-
-        // 状态指示器颜色
-        getStatusDotColor,
-        getStatusTextColor,
+        // 基本颜色获取函数
+        getStatusColor,
+        getStatusStrokeColor,
         getStatusBackgroundColor,
+        getStatusGradient,
+        getNetworkColor,
+        getNetworkColorWithOpacity,
+        getNetworkStatusColor,
 
-        // 动画颜色
-        getPulseColors,
-        getFlowAnimationColor,
+        // 状态判断函数
+        getStatusPriority,
+        isHealthyStatus,
+        isFaultStatus,
+        isWarningStatus,
+        getStatusText,
+        getStatusClass,
+        getStatusIcon,
 
-        // 主题颜色
-        getContrastColor,
-        getHoverColor,
-        getSelectedColor,
+        // 状态计算函数
+        aggregateStatus,
+        calculateHealthScore,
 
-        // 颜色工具
-        interpolateColor,
-        generateColorVariant,
-        withOpacity,
-
-        // 批量处理
-        computeNodesColors,
-        computeLinksColors,
-
-        // CSS相关
-        cssVariables,
-        generateCSSVariables
+        // 响应式变量
+        statusColorVars
     }
 }

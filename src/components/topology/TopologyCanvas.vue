@@ -1,49 +1,24 @@
+<!-- src/components/topology/TopologyCanvas.vue -->
 <template>
-  <div class="topology-canvas-container" ref="containerRef">
-    <!-- 加载状态 -->
-    <div v-if="topologyStore.isLoading" class="loading-overlay">
-      <div class="loading-spinner">
-        <div class="spinner"></div>
-        <p>加载拓扑数据中...</p>
-        <div v-if="layoutProgress > 0" class="progress-bar">
-          <div class="progress-fill" :style="{ width: `${layoutProgress}%` }"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 主SVG画布 -->
+  <div class="topology-canvas" ref="canvasContainer">
+    <!-- SVG画布 -->
     <svg
-        ref="svgRef"
-        class="topology-svg"
+        ref="svgCanvas"
+        class="canvas-svg"
         :width="canvasWidth"
         :height="canvasHeight"
+        :viewBox="`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`"
         @click="handleCanvasClick"
-        @contextmenu.prevent="handleCanvasRightClick"
+        @wheel.prevent="handleWheel"
+        @mousedown="handleMouseDown"
+        @mousemove="handleMouseMove"
+        @mouseup="handleMouseUp"
+        @mouseleave="handleMouseLeave"
     >
       <!-- 定义渐变和滤镜 -->
       <defs>
-        <linearGradient id="nodeGradientNormal" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" :stop-color="statusColors.normal" stop-opacity="0.8"/>
-          <stop offset="100%" :stop-color="statusColors.normal" stop-opacity="0.6"/>
-        </linearGradient>
-
-        <linearGradient id="nodeGradientWarning" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" :stop-color="statusColors.warning" stop-opacity="0.8"/>
-          <stop offset="100%" :stop-color="statusColors.warning" stop-opacity="0.6"/>
-        </linearGradient>
-
-        <linearGradient id="nodeGradientCritical" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" :stop-color="statusColors.critical" stop-opacity="0.8"/>
-          <stop offset="100%" :stop-color="statusColors.critical" stop-opacity="0.6"/>
-        </linearGradient>
-
-        <linearGradient id="nodeGradientOffline" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" :stop-color="statusColors.offline" stop-opacity="0.8"/>
-          <stop offset="100%" :stop-color="statusColors.offline" stop-opacity="0.6"/>
-        </linearGradient>
-
-        <!-- 辉光滤镜 -->
-        <filter id="glowNormal">
+        <!-- 节点辉光效果 -->
+        <filter id="node-glow-normal" x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
           <feMerge>
             <feMergeNode in="coloredBlur"/>
@@ -51,654 +26,733 @@
           </feMerge>
         </filter>
 
-        <filter id="glowCritical">
-          <feGaussianBlur stdDeviation="5" result="coloredBlur"/>
+        <filter id="node-glow-warning" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
           <feMerge>
             <feMergeNode in="coloredBlur"/>
             <feMergeNode in="SourceGraphic"/>
           </feMerge>
         </filter>
 
-        <!-- 箭头标记 -->
-        <marker
-            id="arrowhead"
-            markerWidth="10"
-            markerHeight="7"
-            refX="9"
-            refY="3.5"
-            orient="auto"
-        >
-          <polygon
-              points="0 0, 10 3.5, 0 7"
-              :fill="networkColors.a_network"
-          />
+        <filter id="node-glow-critical" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
+          <feMerge>
+            <feMergeNode in="coloredBlur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+
+        <!-- 网络链路渐变 -->
+        <linearGradient id="a-network-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" style="stop-color:#64FFDA;stop-opacity:1" />
+          <stop offset="50%" style="stop-color:#64FFDA;stop-opacity:0.8" />
+          <stop offset="100%" style="stop-color:#64FFDA;stop-opacity:1" />
+        </linearGradient>
+
+        <linearGradient id="b-network-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" style="stop-color:#FF2DF7;stop-opacity:1" />
+          <stop offset="50%" style="stop-color:#FF2DF7;stop-opacity:0.8" />
+          <stop offset="100%" style="stop-color:#FF2DF7;stop-opacity:1" />
+        </linearGradient>
+
+        <!-- 数据流动画标记 -->
+        <marker id="flow-marker-a" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+          <circle cx="4" cy="4" r="2" fill="#64FFDA" opacity="0.8">
+            <animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" repeatCount="indefinite"/>
+          </circle>
+        </marker>
+
+        <marker id="flow-marker-b" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+          <circle cx="4" cy="4" r="2" fill="#FF2DF7" opacity="0.8">
+            <animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" repeatCount="indefinite"/>
+          </circle>
         </marker>
       </defs>
 
-      <!-- 背景网格 -->
+      <!-- 网格背景 -->
       <g v-if="showGrid" class="grid-layer">
         <defs>
           <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
-            <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#1a202c" stroke-width="1" opacity="0.3"/>
+            <path d="M 50 0 L 0 0 0 50" fill="none" stroke="rgba(100,255,218,0.1)" stroke-width="1"/>
           </pattern>
         </defs>
         <rect width="100%" height="100%" fill="url(#grid)" />
       </g>
 
-      <!-- 主要绘制组 -->
-      <g class="main-group" :transform="transform">
-        <!-- 链路层 -->
-        <g class="links-layer">
-          <TopologyLink
-              v-for="link in visibleLinks"
-              :key="link.id"
-              :link="link"
-              :is-selected="selectedLinkId === link.id"
-              :is-hovered="hoveredElementId === link.id"
-              @click="handleLinkClick"
-              @mouseenter="handleLinkMouseEnter"
-              @mouseleave="handleLinkMouseLeave"
-          />
-        </g>
+      <!-- 链路层 -->
+      <g class="links-layer">
+        <NetworkLink
+            v-for="link in visibleLinks"
+            :key="link.id"
+            :link="link"
+            :source-node="getNodeById(link.source)"
+            :target-node="getNodeById(link.target)"
+            :show-data-flow="enableFlowAnimation && link.status === 'active'"
+            :show-network-colors="showNetworkColors"
+            :is-hovered="hoveredElementId === link.id"
+            :is-selected="selectedElementId === link.id"
+            @click="handleLinkClick"
+            @mouseenter="handleLinkHover"
+            @mouseleave="handleLinkLeave"
+        />
+      </g>
 
-        <!-- 节点层 -->
-        <g class="nodes-layer">
-          <TopologyNode
-              v-for="node in visibleNodes"
-              :key="node.id"
-              :node="node"
-              :is-selected="selectedNodeId === node.id"
-              :is-hovered="hoveredElementId === node.id"
-              :zoom-level="zoomLevel"
-              @click="handleNodeClick"
-              @mouseenter="handleNodeMouseEnter"
-              @mouseleave="handleNodeMouseLeave"
-              @dblclick="handleNodeDoubleClick"
-          />
-        </g>
+      <!-- 节点层 -->
+      <g class="nodes-layer">
+        <NetworkNode
+            v-for="node in visibleNodes"
+            :key="node.id"
+            :node="node"
+            :is-selected="selectedElementId === node.id"
+            :is-hovered="hoveredElementId === node.id"
+            :enable-glow="enableGlowEffect"
+            :enable-drag="enableNodeDrag"
+            @click="handleNodeClick"
+            @mouseenter="handleNodeHover"
+            @mouseleave="handleNodeLeave"
+            @drag-start="handleNodeDragStart"
+            @drag="handleNodeDrag"
+            @drag-end="handleNodeDragEnd"
+        />
+      </g>
 
-        <!-- 选择框 -->
-        <rect
-            v-if="selectionBox.isActive"
-            class="selection-box"
-            :x="Math.min(selectionBox.start.x, selectionBox.end.x)"
-            :y="Math.min(selectionBox.start.y, selectionBox.end.y)"
-            :width="Math.abs(selectionBox.end.x - selectionBox.start.x)"
-            :height="Math.abs(selectionBox.end.y - selectionBox.start.y)"
-            fill="rgba(100, 255, 218, 0.1)"
-            stroke="#64FFDA"
-            stroke-width="1"
-            stroke-dasharray="5,5"
+      <!-- 选择框 -->
+      <rect
+          v-if="selectionBox.isActive"
+          :x="Math.min(selectionBox.start.x, selectionBox.end.x)"
+          :y="Math.min(selectionBox.start.y, selectionBox.end.y)"
+          :width="Math.abs(selectionBox.end.x - selectionBox.start.x)"
+          :height="Math.abs(selectionBox.end.y - selectionBox.start.y)"
+          class="selection-box"
+          fill="rgba(100, 255, 218, 0.1)"
+          stroke="rgba(100, 255, 218, 0.5)"
+          stroke-width="2"
+          stroke-dasharray="5,5"
+      />
+
+      <!-- 动画层：数据流粒子效果 -->
+      <g v-if="enableFlowAnimation" class="flow-particles-layer">
+        <circle
+            v-for="particle in flowParticles"
+            :key="particle.id"
+            :cx="particle.x"
+            :cy="particle.y"
+            :r="particle.size"
+            :fill="particle.color"
+            :opacity="particle.opacity"
+            class="flow-particle"
         />
       </g>
     </svg>
 
-    <!-- 工具栏 -->
-    <div class="topology-toolbar">
-      <div class="toolbar-group">
-        <!-- 缩放控制 -->
-        <button
-            class="toolbar-btn"
-            @click="zoomIn"
-            :disabled="zoomLevel >= maxZoom"
-            title="放大"
-        >
-          <span class="icon">🔍+</span>
-        </button>
+    <!-- 加载指示器 -->
+    <div v-if="isLoading" class="canvas-loading">
+      <LoadingSpinner size="medium" variant="network" />
+    </div>
 
-        <button
-            class="toolbar-btn"
-            @click="zoomOut"
-            :disabled="zoomLevel <= minZoom"
-            title="缩小"
-        >
-          <span class="icon">🔍-</span>
-        </button>
+    <!-- 画布控制器 -->
+    <div class="canvas-controls">
+      <!-- 缩放控制 -->
+      <div class="zoom-controls">
+        <button @click="zoomIn" class="zoom-btn" title="放大">+</button>
+        <span class="zoom-level">{{ Math.round(currentZoom * 100) }}%</span>
+        <button @click="zoomOut" class="zoom-btn" title="缩小">−</button>
+      </div>
 
-        <button
-            class="toolbar-btn"
-            @click="zoomToFit"
-            title="适应窗口"
-        >
-          <span class="icon">⊞</span>
+      <!-- 视图控制 -->
+      <div class="view-controls">
+        <button @click="fitToView" class="control-btn" title="适应窗口">
+          📐
         </button>
-
-        <button
-            class="toolbar-btn"
-            @click="resetView"
-            title="重置视图"
-        >
-          <span class="icon">🏠</span>
+        <button @click="centerView" class="control-btn" title="居中视图">
+          🎯
+        </button>
+        <button @click="toggleGrid" class="control-btn" :class="{ active: showGrid }" title="显示网格">
+          ⚏
         </button>
       </div>
 
-      <div class="toolbar-group">
-        <!-- 布局控制 -->
-        <button
-            class="toolbar-btn"
-            :class="{ active: autoLayout }"
-            @click="toggleAutoLayout"
-            title="自动布局"
-        >
-          <span class="icon">🎯</span>
+      <!-- 布局控制 -->
+      <div class="layout-controls">
+        <button @click="applyHierarchicalLayout" class="control-btn"
+                :class="{ active: layoutType === 'hierarchical' }" title="分层布局">
+          📊
         </button>
-
-        <select
-            class="toolbar-select"
-            v-model="layoutType"
-            @change="handleLayoutChange"
-        >
-          <option value="hierarchical">分层布局</option>
-          <option value="force">力导向布局</option>
-          <option value="manual">手动布局</option>
-        </select>
-      </div>
-
-      <div class="toolbar-group">
-        <!-- 显示控制 -->
-        <button
-            class="toolbar-btn"
-            :class="{ active: showGrid }"
-            @click="toggleGrid"
-            title="显示网格"
-        >
-          <span class="icon">⊞</span>
+        <button @click="applyForceLayout" class="control-btn"
+                :class="{ active: layoutType === 'force' }" title="力导向布局">
+          🌐
         </button>
-
-        <button
-            class="toolbar-btn"
-            :class="{ active: enableAnimations }"
-            @click="toggleAnimations"
-            title="启用动画"
-        >
-          <span class="icon">✨</span>
-        </button>
-      </div>
-
-      <!-- 缩放比例显示 -->
-      <div class="zoom-indicator">
-        {{ Math.round(zoomLevel * 100) }}%
       </div>
     </div>
 
     <!-- 小地图 -->
     <div v-if="showMinimap" class="minimap">
-      <svg class="minimap-svg" :width="minimapWidth" :height="minimapHeight">
-        <rect
-            class="minimap-bg"
-            width="100%"
-            height="100%"
-            fill="#1a202c"
-            stroke="#374151"
+      <svg class="minimap-svg" :width="minimapWidth" :height="minimapHeight" :viewBox="minimapViewBox">
+        <!-- 小地图中的节点 -->
+        <circle
+            v-for="node in visibleNodes"
+            :key="`mini-${node.id}`"
+            :cx="node.position.x / minimapScale"
+            :cy="node.position.y / minimapScale"
+            :r="3"
+            :fill="getStatusColor(node.status)"
+            opacity="0.8"
         />
 
-        <!-- 小地图内容 -->
-        <g class="minimap-content" :transform="minimapTransform">
-          <!-- 简化的节点显示 -->
-          <circle
-              v-for="node in visibleNodes"
-              :key="`mini-${node.id}`"
-              :cx="node.position.x"
-              :cy="node.position.y"
-              r="3"
-              :fill="getNodeColor(node.status)"
-          />
-
-          <!-- 当前视窗区域 -->
-          <rect
-              class="viewport-indicator"
-              :x="viewportRect.x"
-              :y="viewportRect.y"
-              :width="viewportRect.width"
-              :height="viewportRect.height"
-              fill="none"
-              stroke="#64FFDA"
-              stroke-width="1"
-          />
-        </g>
+        <!-- 当前视口指示器 -->
+        <rect
+            :x="viewBox.x / minimapScale"
+            :y="viewBox.y / minimapScale"
+            :width="viewBox.width / minimapScale"
+            :height="viewBox.height / minimapScale"
+            fill="none"
+            stroke="rgba(100, 255, 218, 0.8)"
+            stroke-width="2"
+            class="viewport-indicator"
+        />
       </svg>
-    </div>
-
-    <!-- 右键菜单 -->
-    <div
-        v-if="contextMenu.visible"
-        class="context-menu"
-        :style="{
-        left: `${contextMenu.x}px`,
-        top: `${contextMenu.y}px`
-      }"
-    >
-      <div class="menu-item" @click="handleMenuAction('zoomToNode')">
-        缩放至节点
-      </div>
-      <div class="menu-item" @click="handleMenuAction('showDetails')">
-        查看详情
-      </div>
-      <div class="menu-divider"></div>
-      <div class="menu-item" @click="handleMenuAction('export')">
-        导出图像
-      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import * as d3 from 'd3'
-import { useTopologyStore } from '../../stores/topology'
-import { useSystemStore } from '../../stores/system'
-import { useTopology } from '../../composables/useTopology'
 import { useStatusColors } from '../../composables/useStatusColors'
 import { useAnimations } from '../../composables/useAnimations'
-import { DEFAULT_TOPOLOGY_CONFIG } from '../../constants/config'
-import TopologyNode from './NetworkNode.vue'
-import TopologyLink from './NetworkLink.vue'
-import type { TopologyNode as ITopologyNode, TopologyLink as ITopologyLink } from '../../types/topology'
+import NetworkNode from './NetworkNode.vue'
+import NetworkLink from './NetworkLink.vue'
+import LoadingSpinner from '../common/LoadingSpinner.vue'
+import type {
+  TopologyNode,
+  TopologyLink,
+  Position,
+  TopologyEvent
+} from '../../types/topology'
+import type { DeviceStatus } from '../../types/devices'
+import { calculateHierarchicalLayout, calculateForceLayout } from '../../utils/layout-algorithms'
 
-// ===== Props & Emits =====
+// Props定义
 interface Props {
-  width?: number
-  height?: number
-  enableZoom?: boolean
-  enablePan?: boolean
+  nodes: TopologyNode[]
+  links: TopologyLink[]
+  zoomLevel?: number
+  panOffset?: Position
+  layoutType?: 'hierarchical' | 'force' | 'manual'
+  isLoading?: boolean
+  enableGlowEffect?: boolean
+  enableFlowAnimation?: boolean
+  showNetworkColors?: boolean
   showMinimap?: boolean
-  showGrid?: boolean
+  enableNodeDrag?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  width: 1200,
-  height: 800,
-  enableZoom: true,
-  enablePan: true,
+  zoomLevel: 1,
+  panOffset: () => ({ x: 0, y: 0 }),
+  layoutType: 'hierarchical',
+  isLoading: false,
+  enableGlowEffect: true,
+  enableFlowAnimation: true,
+  showNetworkColors: false,
   showMinimap: true,
-  showGrid: false
+  enableNodeDrag: true
 })
 
+// Events定义
 const emit = defineEmits<{
-  nodeClick: [node: ITopologyNode, event: MouseEvent]
-  linkClick: [link: ITopologyLink, event: MouseEvent]
-  canvasClick: [event: MouseEvent]
-  viewChanged: [transform: { zoom: number, pan: { x: number, y: number } }]
+  'node-click': [node: TopologyNode, event: MouseEvent]
+  'node-hover': [node: TopologyNode | null, event?: MouseEvent]
+  'link-click': [link: TopologyLink, event: MouseEvent]
+  'link-hover': [link: TopologyLink | null, event?: MouseEvent]
+  'canvas-click': [event: MouseEvent]
+  'view-transform': [transform: { zoom: number, pan: Position }]
+  'layout-change': [layoutType: string]
+  'selection-change': [selectedIds: string[]]
 }>()
 
-// ===== Stores & Composables =====
-const topologyStore = useTopologyStore()
-const systemStore = useSystemStore()
-const {
-  visibleNodes,
-  visibleLinks,
-  layoutProgress,
-  handleNodeClick: topologyNodeClick,
-  handleLinkClick: topologyLinkClick,
-  handleCanvasClick: topologyCanvasClick,
-  zoomToFit: topologyZoomToFit
-} = useTopology()
-const { statusColors, networkColors, getNodeColor } = useStatusColors()
-const { animationsEnabled, setAnimationsEnabled } = useAnimations()
+// 组合式函数
+const { getStatusColor } = useStatusColors()
+const { startFlowAnimation, stopFlowAnimation, flowParticles } = useAnimations()
 
-// ===== 响应式数据 =====
-const containerRef = ref<HTMLElement>()
-const svgRef = ref<SVGElement>()
+// 模板引用
+const canvasContainer = ref<HTMLElement>()
+const svgCanvas = ref<SVGElement>()
 
-// 画布尺寸
-const canvasWidth = computed(() => props.width)
-const canvasHeight = computed(() => props.height)
+// 画布状态
+const canvasWidth = ref(1200)
+const canvasHeight = ref(800)
+const currentZoom = ref(props.zoomLevel)
+const currentPan = ref<Position>({ ...props.panOffset })
+const showGrid = ref(false)
 
-// 缩放和平移
-const zoomLevel = computed(() => topologyStore.zoomLevel)
-const panOffset = computed(() => topologyStore.panOffset)
-const minZoom = ref(0.1)
-const maxZoom = ref(5)
-
-// 变换字符串
-const transform = computed(() =>
-    `translate(${panOffset.value.x}, ${panOffset.value.y}) scale(${zoomLevel.value})`
-)
-
-// 选择状态
-const selectedNodeId = computed(() => topologyStore.selectedNodeId)
-const selectedLinkId = computed(() => topologyStore.selectedLinkId)
-const hoveredElementId = computed(() => topologyStore.hoveredElementId)
-
-// 布局控制
-const autoLayout = computed({
-  get: () => topologyStore.autoLayout,
-  set: (value) => topologyStore.toggleAutoLayout()
+// 交互状态
+const selectedElementId = ref<string | null>(null)
+const hoveredElementId = ref<string | null>(null)
+const isDragging = ref(false)
+const dragState = ref<{
+  target: 'canvas' | 'node' | null
+  startPosition: Position
+  nodeId?: string
+}>({
+  target: null,
+  startPosition: { x: 0, y: 0 }
 })
 
-const layoutType = computed({
-  get: () => topologyStore.layoutType,
-  set: (value) => topologyStore.setLayoutType(value as any)
-})
-
-// 显示控制
-const showGrid = ref(props.showGrid)
-const enableAnimations = computed({
-  get: () => animationsEnabled.value,
-  set: (value) => setAnimationsEnabled(value)
-})
-
-// 选择框
-const selectionBox = ref({
+// 选择框状态
+const selectionBox = ref<{
+  isActive: boolean
+  start: Position
+  end: Position
+}>({
   isActive: false,
   start: { x: 0, y: 0 },
   end: { x: 0, y: 0 }
 })
 
-// 右键菜单
-const contextMenu = ref({
-  visible: false,
-  x: 0,
-  y: 0,
-  target: null as ITopologyNode | ITopologyLink | null
+// 小地图配置
+const minimapWidth = 200
+const minimapHeight = 150
+const minimapScale = 10
+
+// 计算属性
+const viewBox = computed(() => ({
+  x: -currentPan.value.x,
+  y: -currentPan.value.y,
+  width: canvasWidth.value / currentZoom.value,
+  height: canvasHeight.value / currentZoom.value
+}))
+
+const minimapViewBox = computed(() => {
+  const bounds = getLayoutBounds()
+  return `${bounds.minX / minimapScale} ${bounds.minY / minimapScale} ${(bounds.maxX - bounds.minX) / minimapScale} ${(bounds.maxY - bounds.minY) / minimapScale}`
 })
 
-// 小地图
-const minimapWidth = ref(200)
-const minimapHeight = ref(150)
-const showMinimap = ref(props.showMinimap)
-
-// D3相关
-let zoomBehavior: d3.ZoomBehavior<SVGElement, unknown> | null = null
-let simulation: d3.Simulation<any, any> | null = null
-
-// ===== 计算属性 =====
-
-// 小地图变换
-const minimapTransform = computed(() => {
-  const scaleX = minimapWidth.value / canvasWidth.value
-  const scaleY = minimapHeight.value / canvasHeight.value
-  const scale = Math.min(scaleX, scaleY) * 0.8
-
-  return `scale(${scale})`
+const visibleNodes = computed(() => {
+  // TODO: 实现视口裁剪优化
+  return props.nodes
 })
 
-// 当前视窗区域（小地图中显示）
-const viewportRect = computed(() => {
-  const scale = minimapWidth.value / canvasWidth.value * 0.8
-  return {
-    x: -panOffset.value.x * scale / zoomLevel.value,
-    y: -panOffset.value.y * scale / zoomLevel.value,
-    width: canvasWidth.value * scale / zoomLevel.value,
-    height: canvasHeight.value * scale / zoomLevel.value
-  }
+const visibleLinks = computed(() => {
+  // TODO: 实现视口裁剪优化
+  return props.links
 })
 
-// ===== 缩放和平移方法 =====
-
-// 初始化缩放行为
-function initializeZoom(): void {
-  if (!svgRef.value || !props.enableZoom) return
-
-  zoomBehavior = d3.zoom<SVGElement, unknown>()
-      .scaleExtent([minZoom.value, maxZoom.value])
-      .on('zoom', handleZoom)
-
-  d3.select(svgRef.value).call(zoomBehavior)
+// 工具函数
+function getNodeById(nodeId: string): TopologyNode | undefined {
+  return props.nodes.find(node => node.id === nodeId)
 }
 
-// 处理缩放事件
-function handleZoom(event: d3.D3ZoomEvent<SVGElement, unknown>): void {
-  const { k: zoom, x, y } = event.transform
+function getLayoutBounds() {
+  if (props.nodes.length === 0) {
+    return { minX: 0, maxX: canvasWidth.value, minY: 0, maxY: canvasHeight.value }
+  }
 
-  topologyStore.setViewTransform(zoom, { x, y })
+  const positions = props.nodes.map(node => node.position)
+  return {
+    minX: Math.min(...positions.map(p => p.x)) - 100,
+    maxX: Math.max(...positions.map(p => p.x)) + 100,
+    minY: Math.min(...positions.map(p => p.y)) - 100,
+    maxY: Math.max(...positions.map(p => p.y)) + 100
+  }
+}
 
-  emit('viewChanged', {
-    zoom,
-    pan: { x, y }
+function screenToSVG(screenPoint: Position): Position {
+  if (!svgCanvas.value) return screenPoint
+
+  const rect = svgCanvas.value.getBoundingClientRect()
+  const pt = svgCanvas.value.createSVGPoint()
+  pt.x = screenPoint.x - rect.left
+  pt.y = screenPoint.y - rect.top
+
+  const svgP = pt.matrixTransform(svgCanvas.value.getScreenCTM()?.inverse())
+  return { x: svgP.x, y: svgP.y }
+}
+
+// 视图控制
+function zoomIn() {
+  const newZoom = Math.min(currentZoom.value * 1.2, 5)
+  updateZoom(newZoom)
+}
+
+function zoomOut() {
+  const newZoom = Math.max(currentZoom.value / 1.2, 0.1)
+  updateZoom(newZoom)
+}
+
+function updateZoom(zoom: number) {
+  currentZoom.value = zoom
+  emitViewTransform()
+}
+
+function updatePan(pan: Position) {
+  currentPan.value = { ...pan }
+  emitViewTransform()
+}
+
+function emitViewTransform() {
+  emit('view-transform', {
+    zoom: currentZoom.value,
+    pan: currentPan.value
   })
 }
 
-// 缩放方法
-function zoomIn(): void {
-  const newZoom = Math.min(zoomLevel.value * 1.2, maxZoom.value)
-  animateZoomTo(newZoom)
-}
+function fitToView() {
+  const bounds = getLayoutBounds()
+  const boundsWidth = bounds.maxX - bounds.minX
+  const boundsHeight = bounds.maxY - bounds.minY
 
-function zoomOut(): void {
-  const newZoom = Math.max(zoomLevel.value / 1.2, minZoom.value)
-  animateZoomTo(newZoom)
-}
+  const scaleX = canvasWidth.value / boundsWidth
+  const scaleY = canvasHeight.value / boundsHeight
+  const scale = Math.min(scaleX, scaleY) * 0.9
 
-function animateZoomTo(targetZoom: number): void {
-  if (!svgRef.value || !zoomBehavior) return
+  const centerX = (bounds.minX + bounds.maxX) / 2
+  const centerY = (bounds.minY + bounds.maxY) / 2
 
-  d3.select(svgRef.value)
-      .transition()
-      .duration(300)
-      .call(
-          zoomBehavior.transform,
-          d3.zoomIdentity
-              .translate(panOffset.value.x, panOffset.value.y)
-              .scale(targetZoom)
-      )
-}
-
-function zoomToFit(): void {
-  topologyZoomToFit()
-}
-
-function resetView(): void {
-  topologyStore.resetView()
-
-  if (svgRef.value && zoomBehavior) {
-    d3.select(svgRef.value)
-        .transition()
-        .duration(500)
-        .call(zoomBehavior.transform, d3.zoomIdentity)
+  currentZoom.value = scale
+  currentPan.value = {
+    x: canvasWidth.value / 2 - centerX * scale,
+    y: canvasHeight.value / 2 - centerY * scale
   }
+
+  emitViewTransform()
 }
 
-// ===== 事件处理 =====
+function centerView() {
+  const bounds = getLayoutBounds()
+  const centerX = (bounds.minX + bounds.maxX) / 2
+  const centerY = (bounds.minY + bounds.maxY) / 2
 
-function handleNodeClick(node: ITopologyNode, event: MouseEvent): void {
-  topologyNodeClick(node, event)
-  emit('nodeClick', node, event)
-}
-
-function handleLinkClick(link: ITopologyLink, event: MouseEvent): void {
-  topologyLinkClick(link, event)
-  emit('linkClick', link, event)
-}
-
-function handleCanvasClick(event: MouseEvent): void {
-  // 如果点击的是子元素，不处理
-  if (event.target !== svgRef.value) return
-
-  topologyCanvasClick(event)
-  emit('canvasClick', event)
-
-  // 隐藏右键菜单
-  contextMenu.value.visible = false
-}
-
-function handleCanvasRightClick(event: MouseEvent): void {
-  contextMenu.value = {
-    visible: true,
-    x: event.clientX,
-    y: event.clientY,
-    target: null
+  currentPan.value = {
+    x: canvasWidth.value / 2 - centerX * currentZoom.value,
+    y: canvasHeight.value / 2 - centerY * currentZoom.value
   }
+
+  emitViewTransform()
 }
 
-function handleNodeMouseEnter(node: ITopologyNode): void {
-  topologyStore.setHoveredElement(node.id, 'node')
-}
-
-function handleNodeMouseLeave(): void {
-  topologyStore.clearHover()
-}
-
-function handleLinkMouseEnter(link: ITopologyLink): void {
-  topologyStore.setHoveredElement(link.id, 'link')
-}
-
-function handleLinkMouseLeave(): void {
-  topologyStore.clearHover()
-}
-
-function handleNodeDoubleClick(node: ITopologyNode): void {
-  if (node.type === 'ZC' || node.type === 'ATS') {
-    // 双击进入子系统
-    console.log('Drilling down to subsystem:', node)
-  }
-}
-
-// ===== 工具栏方法 =====
-
-function toggleAutoLayout(): void {
-  topologyStore.toggleAutoLayout()
-}
-
-function handleLayoutChange(): void {
-  // 布局类型已通过 v-model 更新
-  console.log('Layout changed to:', layoutType.value)
-}
-
-function toggleGrid(): void {
+function toggleGrid() {
   showGrid.value = !showGrid.value
 }
 
-function toggleAnimations(): void {
-  setAnimationsEnabled(!animationsEnabled.value)
+// 布局控制
+async function applyHierarchicalLayout() {
+  console.log('Applying hierarchical layout...')
+  emit('layout-change', 'hierarchical')
+
+  const layoutedNodes = await calculateHierarchicalLayout(props.nodes, props.links)
+
+  // 触发节点位置更新动画
+  layoutedNodes.forEach(node => {
+    const originalNode = props.nodes.find(n => n.id === node.id)
+    if (originalNode) {
+      // 这里应该通过事件或状态管理来更新节点位置
+      Object.assign(originalNode.position, node.position)
+    }
+  })
+
+  await nextTick()
+  fitToView()
 }
 
-// ===== 右键菜单方法 =====
+async function applyForceLayout() {
+  console.log('Applying force layout...')
+  emit('layout-change', 'force')
 
-function handleMenuAction(action: string): void {
-  switch (action) {
-    case 'zoomToNode':
-      // TODO: 实现缩放到节点
-      break
-    case 'showDetails':
-      // TODO: 显示详情面板
-      break
-    case 'export':
-      exportCanvas()
-      break
+  const layoutedNodes = await calculateForceLayout(props.nodes, props.links)
+
+  // 触发节点位置更新动画
+  layoutedNodes.forEach(node => {
+    const originalNode = props.nodes.find(n => n.id === node.id)
+    if (originalNode) {
+      Object.assign(originalNode.position, node.position)
+    }
+  })
+
+  await nextTick()
+  fitToView()
+}
+
+// 事件处理
+function handleCanvasClick(event: MouseEvent) {
+  if (isDragging.value) return
+
+  clearSelection()
+  emit('canvas-click', event)
+}
+
+function handleNodeClick(node: TopologyNode, event: MouseEvent) {
+  event.stopPropagation()
+  selectedElementId.value = node.id
+  emit('node-click', node, event)
+}
+
+function handleNodeHover(node: TopologyNode, event: MouseEvent) {
+  hoveredElementId.value = node.id
+  emit('node-hover', node, event)
+}
+
+function handleNodeLeave() {
+  hoveredElementId.value = null
+  emit('node-hover', null)
+}
+
+function handleLinkClick(link: TopologyLink, event: MouseEvent) {
+  event.stopPropagation()
+  selectedElementId.value = link.id
+  emit('link-click', link, event)
+}
+
+function handleLinkHover(link: TopologyLink, event: MouseEvent) {
+  hoveredElementId.value = link.id
+  emit('link-hover', link, event)
+}
+
+function handleLinkLeave() {
+  hoveredElementId.value = null
+  emit('link-hover', null)
+}
+
+function clearSelection() {
+  selectedElementId.value = null
+}
+
+// 鼠标交互
+function handleWheel(event: WheelEvent) {
+  const delta = -event.deltaY * 0.001
+  const newZoom = Math.max(0.1, Math.min(5, currentZoom.value * (1 + delta)))
+
+  // 缩放到鼠标位置
+  const mousePos = screenToSVG({ x: event.clientX, y: event.clientY })
+  const zoomRatio = newZoom / currentZoom.value
+
+  currentPan.value = {
+    x: currentPan.value.x + (mousePos.x - currentPan.value.x) * (1 - zoomRatio),
+    y: currentPan.value.y + (mousePos.y - currentPan.value.y) * (1 - zoomRatio)
   }
 
-  contextMenu.value.visible = false
+  currentZoom.value = newZoom
+  emitViewTransform()
 }
 
-function exportCanvas(): void {
-  if (!svgRef.value) return
+function handleMouseDown(event: MouseEvent) {
+  if (event.button !== 0) return // 只处理左键
 
-  // TODO: 实现SVG导出功能
-  console.log('Exporting canvas...')
+  const svgPoint = screenToSVG({ x: event.clientX, y: event.clientY })
+
+  dragState.value = {
+    target: 'canvas',
+    startPosition: svgPoint
+  }
+
+  // 开始选择框
+  selectionBox.value = {
+    isActive: true,
+    start: svgPoint,
+    end: svgPoint
+  }
+
+  isDragging.value = true
 }
 
-// ===== 生命周期 =====
+function handleMouseMove(event: MouseEvent) {
+  if (!isDragging.value) return
 
-onMounted(async () => {
-  await nextTick()
-  initializeZoom()
+  const svgPoint = screenToSVG({ x: event.clientX, y: event.clientY })
 
-  // 点击外部隐藏右键菜单
-  document.addEventListener('click', () => {
-    contextMenu.value.visible = false
-  })
+  if (dragState.value.target === 'canvas') {
+    if (event.shiftKey) {
+      // 更新选择框
+      selectionBox.value.end = svgPoint
+    } else {
+      // 平移画布
+      const deltaX = svgPoint.x - dragState.value.startPosition.x
+      const deltaY = svgPoint.y - dragState.value.startPosition.y
+
+      currentPan.value = {
+        x: currentPan.value.x + deltaX,
+        y: currentPan.value.y + deltaY
+      }
+
+      emitViewTransform()
+    }
+  }
+}
+
+function handleMouseUp(event: MouseEvent) {
+  if (selectionBox.value.isActive && event.shiftKey) {
+    // 处理选择框选择
+    const box = selectionBox.value
+    const selectedNodes = props.nodes.filter(node => {
+      const x = node.position.x
+      const y = node.position.y
+      return x >= Math.min(box.start.x, box.end.x) &&
+          x <= Math.max(box.start.x, box.end.x) &&
+          y >= Math.min(box.start.y, box.end.y) &&
+          y <= Math.max(box.start.y, box.end.y)
+    })
+
+    emit('selection-change', selectedNodes.map(node => node.id))
+  }
+
+  // 重置状态
+  selectionBox.value.isActive = false
+  isDragging.value = false
+  dragState.value.target = null
+}
+
+function handleMouseLeave() {
+  handleMouseUp(new MouseEvent('mouseup'))
+}
+
+// 节点拖拽
+function handleNodeDragStart(nodeId: string, event: MouseEvent) {
+  if (!props.enableNodeDrag) return
+
+  event.stopPropagation()
+  dragState.value = {
+    target: 'node',
+    nodeId,
+    startPosition: screenToSVG({ x: event.clientX, y: event.clientY })
+  }
+  isDragging.value = true
+}
+
+function handleNodeDrag(nodeId: string, newPosition: Position) {
+  const node = getNodeById(nodeId)
+  if (node) {
+    Object.assign(node.position, newPosition)
+  }
+}
+
+function handleNodeDragEnd() {
+  isDragging.value = false
+  dragState.value.target = null
+}
+
+// 响应式更新画布尺寸
+function updateCanvasSize() {
+  if (!canvasContainer.value) return
+
+  const rect = canvasContainer.value.getBoundingClientRect()
+  canvasWidth.value = rect.width
+  canvasHeight.value = rect.height
+}
+
+// 生命周期
+onMounted(() => {
+  updateCanvasSize()
+  window.addEventListener('resize', updateCanvasSize)
+
+  // 启动流动动画
+  if (props.enableFlowAnimation) {
+    startFlowAnimation(props.links.filter(link => link.status === 'active'))
+  }
 })
 
 onUnmounted(() => {
-  if (simulation) {
-    simulation.stop()
+  window.removeEventListener('resize', updateCanvasSize)
+  stopFlowAnimation()
+})
+
+// 监听器
+watch(() => props.zoomLevel, (newZoom) => {
+  currentZoom.value = newZoom
+})
+
+watch(() => props.panOffset, (newPan) => {
+  currentPan.value = { ...newPan }
+})
+
+watch(() => props.enableFlowAnimation, (enabled) => {
+  if (enabled) {
+    startFlowAnimation(props.links.filter(link => link.status === 'active'))
+  } else {
+    stopFlowAnimation()
   }
 })
 
-// ===== 监听器 =====
-
-watch([zoomLevel, panOffset], () => {
-  if (svgRef.value && zoomBehavior) {
-    // 同步D3缩放状态
-    d3.select(svgRef.value).call(
-        zoomBehavior.transform,
-        d3.zoomIdentity
-            .translate(panOffset.value.x, panOffset.value.y)
-            .scale(zoomLevel.value)
-    )
+watch(() => props.links, (newLinks) => {
+  if (props.enableFlowAnimation) {
+    startFlowAnimation(newLinks.filter(link => link.status === 'active'))
   }
-})
+}, { deep: true })
 </script>
 
 <style scoped>
-.topology-canvas-container {
+.topology-canvas {
   position: relative;
   width: 100%;
   height: 100%;
-  background: #0a192f;
-  border-radius: 8px;
   overflow: hidden;
+  background:
+      radial-gradient(circle at 25% 25%, rgba(100, 255, 218, 0.03) 0%, transparent 50%),
+      radial-gradient(circle at 75% 75%, rgba(59, 130, 246, 0.03) 0%, transparent 50%),
+      #0A192F;
 }
 
-.topology-svg {
-  display: block;
+.canvas-svg {
+  width: 100%;
+  height: 100%;
   cursor: grab;
+  user-select: none;
 }
 
-.topology-svg:active {
+.canvas-svg:active {
   cursor: grabbing;
 }
 
-.loading-overlay {
+.canvas-loading {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(10, 25, 47, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   z-index: 1000;
 }
 
-.loading-spinner {
-  text-align: center;
-  color: #e5e7eb;
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid #374151;
-  border-top: 3px solid #64ffda;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 16px;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.progress-bar {
-  width: 200px;
-  height: 4px;
-  background: #374151;
-  border-radius: 2px;
-  margin-top: 16px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: #64ffda;
-  transition: width 0.3s ease;
-}
-
+/* 选择框样式 */
 .selection-box {
   pointer-events: none;
+  animation: selection-dash 1s linear infinite;
 }
 
-.topology-toolbar {
+@keyframes selection-dash {
+  to {
+    stroke-dashoffset: 10;
+  }
+}
+
+/* 流动粒子样式 */
+.flow-particle {
+  pointer-events: none;
+  animation: particle-glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes particle-glow {
+  0% {
+    filter: drop-shadow(0 0 2px currentColor);
+  }
+  100% {
+    filter: drop-shadow(0 0 6px currentColor);
+  }
+}
+
+/* 画布控制器 */
+.canvas-controls {
   position: absolute;
-  top: 16px;
-  right: 16px;
+  top: 20px;
+  left: 20px;
   display: flex;
+  flex-direction: column;
   gap: 12px;
+  z-index: 100;
+}
+
+.zoom-controls,
+.view-controls,
+.layout-controls {
+  display: flex;
   align-items: center;
+  gap: 4px;
   background: rgba(26, 32, 44, 0.9);
   border: 1px solid #374151;
   border-radius: 8px;
@@ -706,108 +760,152 @@ watch([zoomLevel, panOffset], () => {
   backdrop-filter: blur(10px);
 }
 
-.toolbar-group {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-
-.toolbar-btn {
+.zoom-btn,
+.control-btn {
   width: 32px;
   height: 32px;
-  background: transparent;
-  border: 1px solid #4b5563;
-  border-radius: 4px;
-  color: #e5e7eb;
+  background: rgba(100, 255, 218, 0.1);
+  border: 1px solid rgba(100, 255, 218, 0.3);
+  border-radius: 6px;
+  color: #64FFDA;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
 }
 
-.toolbar-btn:hover {
-  background: #374151;
-  border-color: #64ffda;
+.zoom-btn:hover,
+.control-btn:hover {
+  background: rgba(100, 255, 218, 0.2);
+  box-shadow: 0 0 8px rgba(100, 255, 218, 0.3);
+  transform: translateY(-1px);
 }
 
-.toolbar-btn.active {
-  background: #64ffda;
-  color: #0a192f;
+.control-btn.active {
+  background: rgba(100, 255, 218, 0.3);
+  border-color: rgba(100, 255, 218, 0.6);
+  box-shadow: 0 0 12px rgba(100, 255, 218, 0.4);
 }
 
-.toolbar-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.toolbar-select {
-  background: #374151;
-  border: 1px solid #4b5563;
-  border-radius: 4px;
-  color: #e5e7eb;
-  padding: 4px 8px;
+.zoom-level {
   font-size: 12px;
-}
-
-.zoom-indicator {
-  background: #374151;
-  border-radius: 4px;
-  padding: 4px 8px;
-  font-size: 12px;
-  color: #e5e7eb;
-  min-width: 50px;
+  color: #E5E7EB;
+  font-weight: 500;
+  min-width: 45px;
   text-align: center;
+  padding: 0 4px;
 }
 
+/* 小地图 */
 .minimap {
   position: absolute;
-  bottom: 16px;
-  right: 16px;
+  bottom: 20px;
+  right: 20px;
   background: rgba(26, 32, 44, 0.9);
   border: 1px solid #374151;
   border-radius: 8px;
+  padding: 8px;
   backdrop-filter: blur(10px);
+  z-index: 100;
 }
 
 .minimap-svg {
-  display: block;
-}
-
-.minimap-bg {
-  stroke-width: 1;
+  background: rgba(10, 25, 47, 0.5);
+  border-radius: 4px;
 }
 
 .viewport-indicator {
-  stroke-width: 2;
-  stroke-dasharray: 2,2;
+  pointer-events: none;
+  animation: viewport-pulse 2s ease-in-out infinite alternate;
 }
 
-.context-menu {
-  position: fixed;
-  background: #1a202c;
-  border: 1px solid #374151;
-  border-radius: 8px;
-  padding: 4px 0;
-  min-width: 120px;
-  z-index: 1000;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+@keyframes viewport-pulse {
+  0% {
+    stroke-opacity: 0.6;
+  }
+  100% {
+    stroke-opacity: 1;
+  }
 }
 
-.menu-item {
-  padding: 8px 16px;
-  color: #e5e7eb;
-  cursor: pointer;
-  font-size: 14px;
+/* 网格层样式 */
+.grid-layer {
+  opacity: 0.3;
+  pointer-events: none;
 }
 
-.menu-item:hover {
-  background: #374151;
+/* 图层顺序 */
+.links-layer {
+  z-index: 1;
 }
 
-.menu-divider {
-  height: 1px;
-  background: #374151;
-  margin: 4px 0;
+.nodes-layer {
+  z-index: 2;
+}
+
+.flow-particles-layer {
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .canvas-controls {
+    top: 10px;
+    left: 10px;
+    gap: 8px;
+  }
+
+  .zoom-controls,
+  .view-controls,
+  .layout-controls {
+    padding: 6px;
+    gap: 2px;
+  }
+
+  .zoom-btn,
+  .control-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+
+  .zoom-level {
+    font-size: 10px;
+    min-width: 35px;
+  }
+
+  .minimap {
+    bottom: 10px;
+    right: 10px;
+    padding: 6px;
+  }
+}
+
+/* 性能优化：减少重绘 */
+.canvas-svg * {
+  will-change: auto;
+}
+
+.canvas-svg .nodes-layer,
+.canvas-svg .links-layer {
+  transform-origin: 0 0;
+}
+
+/* 无障碍支持 */
+@media (prefers-reduced-motion: reduce) {
+  .selection-box,
+  .flow-particle,
+  .viewport-indicator {
+    animation: none;
+  }
+
+  .zoom-btn:hover,
+  .control-btn:hover {
+    transform: none;
+  }
 }
 </style>
