@@ -1,0 +1,65 @@
+/* CSS 变量定义 */
+:root {
+    /* 颜色系统 */
+    --color-bg-primary: #0A192F;       /* 主背景色 - 深蓝 */
+    --color-bg-secondary: #112240;     /* 面板背景色 */
+    --color-bg-tertiary: #1D2D4A;      /* 悬浮背景色 */
+
+    /* 文字颜色 */
+    --color-text-primary: #CCD6F6;     /* 主要文字 */
+    --color-text-secondary: #8892B0;   /* 次要文字 */
+    --color-text-accent: #64FFDA;      /* 强调文字 - 青色 */
+
+    /* 状态颜色 */
+    --color-success: #00D4AA;          /* 成功 - 绿色 */
+    --color-warning: #FFC107;          /* 警告 - 黄色 */
+    --color-danger: #F44336;           /* 危险 - 红色 */
+    --color-info: #2196F3;             /* 信息 - 蓝色 */
+
+    /* 边框和分割线 */
+    --color-border: #233554;           /* 边框色 */
+    --color-border-light: #2A3F5F;     /* 浅边框色 */
+
+    /* 字体系统 */
+    --font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-family-mono: 'Fira Code', 'Source Code Pro', monospace;
+
+    /* 字体大小 */
+    --font-size-xs: 0.75rem;    /* 12px */
+    --font-size-sm: 0.875rem;   /* 14px */
+    --font-size-base: 1rem;     /* 16px */
+    --font-size-lg: 1.125rem;   /* 18px */
+    --font-size-xl: 1.25rem;    /* 20px */
+    --font-size-2xl: 1.5rem;    /* 24px */
+
+    /* 间距系统 */
+    --spacing-xs: 0.25rem;   /* 4px */
+    --spacing-sm: 0.5rem;    /* 8px */
+    --spacing-md: 1rem;      /* 16px */
+    --spacing-lg: 1.5rem;    /* 24px */
+    --spacing-xl: 2rem;      /* 32px */
+    --spacing-2xl: 3rem;     /* 48px */
+
+    /* 圆角 */
+    --border-radius-sm: 4px;
+    --border-radius-md: 8px;
+    --border-radius-lg: 12px;
+
+    /* 阴影 */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.15);
+    --shadow-lg: 0 8px 25px rgba(0, 0, 0, 0.2);
+
+    /* 过渡动画 */
+    --transition-fast: 0.15s ease-out;
+    --transition-base: 0.2s ease-out;
+    --transition-slow: 0.3s ease-out;
+
+    /* Z-index层级 */
+    --z-dropdown: 1000;
+    --z-sticky: 1010;
+    --z-fixed: 1020;
+    --z-modal: 1030;
+    --z-popover: 1040;
+    --z-tooltip: 1050;
+}
