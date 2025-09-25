@@ -1,0 +1,62 @@
+<!-- src/App.vue -->
+<template>
+    <div id="app">
+        <router-view />
+    </div>
+</template>
+
+<script setup>
+    import { onMounted } from 'vue'
+
+    // 异步导入以避免阻塞应用启动
+    const initializeApp = async () => {
+        try {
+            // 动态导入认证 store
+            const { useAuthStore } = await import('@/stores/auth')
+            const authStore = useAuthStore()
+
+            // 检查本地存储的认证状态
+            await authStore.checkAuthStatus()
+
+            // 如果用户已认证且不在开发环境，连接WebSocket
+            if (authStore.isAuthenticated && import.meta.env.PROD) {
+                const wsManager = await import('@/api/websocket')
+                wsManager.default.connect()
+            }
+        } catch (error) {
+            console.warn('应用初始化警告:', error)
+        }
+    }
+
+    onMounted(() => {
+        initializeApp()
+    })
+</script>
+
+<style>
+    /* 引入全局样式 */
+    @import '@/styles/variables.css';
+
+    /* 重置样式 */
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    html, body, #app {
+        height: 100%;
+        font-family: var(--font-family-base);
+        background-color: var(--color-bg-primary);
+        color: var(--color-text-primary);
+    }
+
+    #app {
+        overflow: hidden;
+    }
+
+    /* 移除初始加载动画 */
+    .loading-container {
+        display: none !important;
+    }
+</style>
