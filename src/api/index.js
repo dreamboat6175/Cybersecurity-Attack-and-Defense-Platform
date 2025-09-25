@@ -365,5 +365,8 @@ export async function downloadFile(url, filename, onProgress) {
     return response
 }
 
+// 导出axios实例供Mock使用
+export const axios = api
+
 // 导出axios实例作为默认导出
 export default api
