@@ -1,28 +1,35 @@
-// src/mock/index.js
+// src/mock/index.js - 修复版本
 let mock = null
 
 export function initializeMock() {
-    if (!import.meta.env.VITE_USE_MOCK) return
+    // 强制检查环境变量
+    const shouldUseMock = import.meta.env.VITE_USE_MOCK === 'true' || import.meta.env.DEV
+
+    if (!shouldUseMock) {
+        console.log('Mock模式未启用')
+        return
+    }
 
     console.log('初始化Mock环境...')
 
     try {
-        // 动态导入以避免阻塞
-        import('axios-mock-adapter').then(({ default: MockAdapter }) => {
-            import('axios').then(({ default: axios }) => {
-                import('./data').then(mockData => {
-                    setupMockRoutes(axios, MockAdapter, mockData)
-                })
-            })
+        // 同步导入以确保在API调用前完成初始化
+        Promise.all([
+            import('axios-mock-adapter'),
+            import('axios'),
+            import('./data')
+        ]).then(([{ default: MockAdapter }, { default: axios }, mockData]) => {
+            setupMockRoutes(axios, MockAdapter, mockData)
+            console.log('✅ Mock环境初始化完成')
         }).catch(error => {
-            console.warn('Mock适配器加载失败，使用静态数据:', error)
-            // 如果无法加载 Mock 适配器，直接返回，应用仍能正常工作
+            console.error('❌ Mock适配器加载失败:', error)
         })
 
     } catch (error) {
-        console.warn('Mock初始化失败:', error)
+        console.error('❌ Mock初始化失败:', error)
     }
 }
+
 
 function setupMockRoutes(axios, MockAdapter, mockData) {
     const {
