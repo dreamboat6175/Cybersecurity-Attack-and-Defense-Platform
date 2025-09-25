@@ -1,44 +1,39 @@
 {
-  "name": "cybersecurity-dashboard",
+  "name": "cybersecurity-attack-and-defense-platform",
   "version": "1.0.0",
   "type": "module",
-  "description": "网络安全攻防平台前端",
+  "description": "网络安全攻防平台前端应用",
+  "author": "Your Name",
+  "license": "MIT",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore",
-    "format": "prettier --write src/",
-    "type-check": "vue-tsc --noEmit"
+    "lint": "eslint . --ext vue,js,jsx,cjs,mjs --fix --ignore-path .gitignore",
+    "format": "prettier --write src/"
   },
   "dependencies": {
-    "vue": "^3.4.15",
-    "vue-router": "^4.2.5",
-    "pinia": "^2.1.7",
-    "axios": "^1.6.7",
-    "echarts": "^5.4.3",
-    "@antv/g6": "^4.8.24"
+    "vue": "^3.4.0",
+    "vue-router": "^4.2.0",
+    "pinia": "^2.1.0",
+    "axios": "^1.6.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^5.0.3",
-    "vite": "^5.0.12",
-    "eslint": "^8.57.0",
-    "eslint-plugin-vue": "^9.20.1",
-    "prettier": "^3.2.5",
+    "@vitejs/plugin-vue": "^4.5.0",
     "axios-mock-adapter": "^1.22.0",
-    "@types/node": "^20.11.5"
+    "vite": "^5.0.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0"
   },
   "keywords": [
     "cybersecurity",
     "dashboard",
     "vue3",
-    "attack-defense",
-    "security-monitoring"
+    "security-monitoring",
+    "attack-defense"
   ],
-  "author": "Security Team",
-  "license": "MIT",
   "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=8.0.0"
+    "node": ">=16.0.0",
+    "npm": ">=7.0.0"
   }
 }

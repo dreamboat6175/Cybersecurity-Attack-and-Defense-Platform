@@ -1,65 +1,126 @@
-/* CSS 变量定义 */
+/* CSS变量定义 - 基于效果图的精确颜色方案 */
 :root {
-    /* 颜色系统 */
-    --color-bg-primary: #0A192F;       /* 主背景色 - 深蓝 */
-    --color-bg-secondary: #112240;     /* 面板背景色 */
-    --color-bg-tertiary: #1D2D4A;      /* 悬浮背景色 */
+    /* 主要背景颜色 - 深蓝色系 */
+    --color-bg-primary: #0A192F;       /* 主背景 - 深海军蓝 */
+    --color-bg-secondary: #112240;     /* 面板背景 - 稍亮的深蓝 */
+    --color-bg-tertiary: #1D2D4A;      /* 悬停背景 - 更亮的蓝色 */
 
-    /* 文字颜色 */
-    --color-text-primary: #CCD6F6;     /* 主要文字 */
-    --color-text-secondary: #8892B0;   /* 次要文字 */
-    --color-text-accent: #64FFDA;      /* 强调文字 - 青色 */
+    /* 文字颜色系统 */
+    --color-text-primary: #CCD6F6;     /* 主要文字 - 浅灰蓝 */
+    --color-text-secondary: #8892B0;   /* 次要文字 - 中灰蓝 */
+    --color-text-accent: #64FFDA;      /* 强调文字 - 青绿色 */
+    --color-text-muted: #475569;       /* 弱化文字 */
 
     /* 状态颜色 */
-    --color-success: #00D4AA;          /* 成功 - 绿色 */
+    --color-success: #00D4AA;          /* 成功/在线 - 绿色 */
     --color-warning: #FFC107;          /* 警告 - 黄色 */
-    --color-danger: #F44336;           /* 危险 - 红色 */
+    --color-danger: #F44336;           /* 危险/攻击 - 红色 */
     --color-info: #2196F3;             /* 信息 - 蓝色 */
 
     /* 边框和分割线 */
-    --color-border: #233554;           /* 边框色 */
-    --color-border-light: #2A3F5F;     /* 浅边框色 */
+    --color-border: #233554;           /* 主要边框 */
+    --color-border-light: #2A3F5F;     /* 浅色边框 */
+    --color-border-accent: #64FFDA;    /* 强调边框 */
 
     /* 字体系统 */
-    --font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    --font-family-mono: 'Fira Code', 'Source Code Pro', monospace;
+    --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-family-mono: 'Courier New', 'Monaco', 'Menlo', monospace;
 
-    /* 字体大小 */
-    --font-size-xs: 0.75rem;    /* 12px */
-    --font-size-sm: 0.875rem;   /* 14px */
-    --font-size-base: 1rem;     /* 16px */
-    --font-size-lg: 1.125rem;   /* 18px */
-    --font-size-xl: 1.25rem;    /* 20px */
-    --font-size-2xl: 1.5rem;    /* 24px */
+    /* 字体大小系统 */
+    --font-size-xs: 11px;      /* 极小字体 */
+    --font-size-sm: 13px;      /* 小字体 */
+    --font-size-base: 14px;    /* 基础字体 */
+    --font-size-lg: 16px;      /* 大字体 */
+    --font-size-xl: 18px;      /* 超大字体 */
+    --font-size-2xl: 20px;     /* 标题字体 */
+
+    /* 字重 */
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
 
     /* 间距系统 */
-    --spacing-xs: 0.25rem;   /* 4px */
-    --spacing-sm: 0.5rem;    /* 8px */
-    --spacing-md: 1rem;      /* 16px */
-    --spacing-lg: 1.5rem;    /* 24px */
-    --spacing-xl: 2rem;      /* 32px */
-    --spacing-2xl: 3rem;     /* 48px */
+    --spacing-xs: 4px;     /* 极小间距 */
+    --spacing-sm: 8px;     /* 小间距 */
+    --spacing-md: 16px;    /* 中等间距 */
+    --spacing-lg: 24px;    /* 大间距 */
+    --spacing-xl: 32px;    /* 超大间距 */
+    --spacing-2xl: 48px;   /* 极大间距 */
 
-    /* 圆角 */
-    --border-radius-sm: 4px;
-    --border-radius-md: 8px;
-    --border-radius-lg: 12px;
+    /* 圆角系统 */
+    --border-radius-sm: 4px;    /* 小圆角 */
+    --border-radius-md: 8px;    /* 中等圆角 */
+    --border-radius-lg: 12px;   /* 大圆角 */
+    --border-radius-xl: 16px;   /* 超大圆角 */
 
-    /* 阴影 */
+    /* 阴影系统 */
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1);
     --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.15);
     --shadow-lg: 0 8px 25px rgba(0, 0, 0, 0.2);
+    --shadow-accent: 0 4px 12px rgba(100, 255, 218, 0.3);
 
     /* 过渡动画 */
     --transition-fast: 0.15s ease-out;
     --transition-base: 0.2s ease-out;
     --transition-slow: 0.3s ease-out;
 
-    /* Z-index层级 */
+    /* Z-index层级管理 */
     --z-dropdown: 1000;
     --z-sticky: 1010;
     --z-fixed: 1020;
     --z-modal: 1030;
     --z-popover: 1040;
     --z-tooltip: 1050;
+
+    /* 布局尺寸 */
+    --sidebar-width: 280px;
+    --panel-min-height: 300px;
+    --header-height: 60px;
+
+    /* 网格布局配置 */
+    --grid-columns-left: 280px;
+    --grid-columns-center: 1fr;
+    --grid-columns-right: 320px;
+    --grid-gap: 16px;
+
+    /* 表格和列表 */
+    --table-row-height: 40px;
+    --list-item-height: 48px;
+
+    /* 图表颜色 */
+    --chart-primary: #64FFDA;
+    --chart-secondary: #4ECDC4;
+    --chart-danger: #F44336;
+    --chart-warning: #FFC107;
+    --chart-success: #00D4AA;
+
+    /* 渐变 */
+    --gradient-primary: linear-gradient(135deg, var(--color-text-accent), #4ECDC4);
+    --gradient-danger: linear-gradient(135deg, #F44336, #D32F2F);
+    --gradient-bg: linear-gradient(135deg, var(--color-bg-primary), #1a2332);
+}
+
+/* 深色主题专用变量（可扩展） */
+[data-theme="dark"] {
+    --color-bg-primary: #0A192F;
+    --color-bg-secondary: #112240;
+    --color-text-primary: #CCD6F6;
+}
+
+/* 高对比度模式 */
+@media (prefers-contrast: high) {
+    :root {
+        --color-border: #3A4A5C;
+        --color-text-secondary: #9CA3AF;
+    }
+}
+
+/* 减少动画模式 */
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --transition-fast: 0s;
+        --transition-base: 0s;
+        --transition-slow: 0s;
+    }
 }

@@ -1,91 +1,112 @@
-// src/stores/dashboard.js
 import { defineStore } from 'pinia'
-import request from '@/api'
-import wsManager, { wsHandlers } from '@/api/websocket'
-import { ATTACK_METHODS } from '@/utils/constants'
+import { dashboardAPI } from '@/api/dashboard'
+import { targetsAPI } from '@/api/targets'
+import { attacksAPI } from '@/api/attacks'
 
 export const useDashboardStore = defineStore('dashboard', {
     state: () => ({
-        // 基础状态
-        isLoading: false,
+        // 加载状态
+        loading: false,
         error: null,
-        lastUpdated: null,
 
-        // 目标相关
+        // 基础数据
+        systemStats: {
+            totalTargets: 0,
+            onlineTargets: 0,
+            activeAttacks: 0,
+            vulnerabilities: 0
+        },
+
+        // 目标列表
         targets: [],
         selectedTargetId: null,
 
-        // 攻击方法
-        attackMethods: ATTACK_METHODS,
-
         // 攻击日志
         attackLogs: [],
-        recentAttackLogs: [],
+        realtimeAttackLogs: [],
 
         // 网络拓扑
-        networkNodes: [],
-        networkEdges: [],
-
-        // 漏洞扫描
-        scanResults: {},
-        vulnerabilityStats: {
-            critical: 0,
-            high: 0,
-            medium: 0,
-            low: 0,
-            total: 0
+        networkTopology: {
+            nodes: [],
+            edges: []
         },
 
-        // 流量监控
+        // 扫描结果
+        vulnerabilityScans: {},
+
+        // 流量数据
         trafficData: {},
         realtimeTraffic: {
             incoming: 0,
             outgoing: 0,
             total: 0
-        }
+        },
+
+        // 攻击方法
+        attackMethods: []
     }),
 
     getters: {
+        // 当前选中的目标
         selectedTarget: (state) => {
             return state.targets.find(target => target.id === state.selectedTargetId)
         },
 
-        onlineTargets: (state) => {
-            return state.targets.filter(target => target.status !== 'offline')
+        // 在线目标数量
+        onlineTargetsCount: (state) => {
+            return state.targets.filter(target => target.status !== 'offline').length
         },
 
-        criticalTargets: (state) => {
-            return state.targets.filter(target => target.status === 'danger')
-        },
-
-        totalVulnerabilities: (state) => {
-            return state.targets.reduce((sum, target) => sum + (target.vulnerabilities || 0), 0)
-        },
-
-        recentAttacks: (state) => {
+        // 最近攻击日志
+        recentAttackLogs: (state) => {
             return state.attackLogs.slice(0, 10)
+        },
+
+        // 当前目标的扫描结果
+        currentTargetScan: (state) => {
+            return state.selectedTargetId ? state.vulnerabilityScans[state.selectedTargetId] : null
         }
     },
 
     actions: {
-        /**
-         * 初始化仪表盘
-         */
+        // 初始化仪表盘
         async initializeDashboard() {
             try {
-                this.isLoading = true
-                console.log('🚀 初始化仪表盘数据...')
+                this.loading = true
+                this.error = null
 
-                // 加载基础数据
-                await this.loadDashboardData()
+                console.log('🚀 开始初始化仪表盘数据...')
 
-                // 设置WebSocket监听
-                this.setupWebSocketListeners()
+                // 并行加载基础数据
+                const [
+                    overviewData,
+                    targetsData,
+                    logsData,
+                    methodsData,
+                    topologyData
+                ] = await Promise.all([
+                    dashboardAPI.getDashboardOverview(),
+                    targetsAPI.getTargets(),
+                    attacksAPI.getAttackLogs({ limit: 50 }),
+                    attacksAPI.getAttackMethods(),
+                    attacksAPI.getNetworkTopology()
+                ])
 
-                // 连接WebSocket
-                wsManager.connect()
+                // 更新状态
+                this.systemStats = overviewData.stats
+                this.targets = targetsData.targets
+                this.attackLogs = logsData.logs
+                this.attackMethods = methodsData.methods
+                this.networkTopology = topologyData.topology
 
-                this.lastUpdated = new Date().toISOString()
+                // 默认选中第一个目标
+                if (this.targets.length > 0) {
+                    await this.selectTarget(this.targets[0].id)
+                }
+
+                // 启动实时数据更新
+                this.startRealtimeUpdates()
+
                 console.log('✅ 仪表盘初始化完成')
 
             } catch (error) {
@@ -93,231 +114,153 @@ export const useDashboardStore = defineStore('dashboard', {
                 this.error = error.message
                 throw error
             } finally {
-                this.isLoading = false
+                this.loading = false
             }
         },
 
-        /**
-         * 加载仪表盘数据
-         */
-        async loadDashboardData() {
+        // 选择目标
+        async selectTarget(targetId) {
             try {
-                const response = await request.get('/api/dashboard')
+                console.log(`🎯 选择目标: ${targetId}`)
 
-                if (response.data) {
-                    this.targets = response.data.targets || []
-                    this.attackLogs = response.data.attackLogs || []
-                    this.recentAttackLogs = this.attackLogs.slice(0, 20)
-                    this.networkNodes = response.data.networkTopology?.nodes || []
-                    this.networkEdges = response.data.networkTopology?.edges || []
+                this.selectedTargetId = targetId
 
-                    // 如果有目标且没有选中的目标，默认选中第一个
-                    if (this.targets.length > 0 && !this.selectedTargetId) {
-                        this.selectedTargetId = this.targets[0].id
-                    }
+                // 加载该目标的扫描结果
+                const scanResults = await targetsAPI.getScanResults(targetId)
+                this.vulnerabilityScans[targetId] = scanResults
 
-                    // 加载选中目标的扫描数据
-                    if (this.selectedTargetId) {
-                        await this.loadVulnerabilityScan(this.selectedTargetId)
-                    }
-                }
+                // 加载流量数据
+                await this.loadTrafficData('6h')
+
             } catch (error) {
-                console.error('❌ 加载仪表盘数据失败:', error)
-                throw error
+                console.error('❌ 选择目标失败:', error)
+                this.error = error.message
             }
         },
 
-        /**
-         * 刷新数据
-         */
-        async refreshData() {
+        // 添加目标
+        async addTarget(targetData) {
             try {
-                this.isLoading = true
-                await this.loadDashboardData()
-                this.lastUpdated = new Date().toISOString()
+                console.log('🎯 添加新目标:', targetData)
+
+                const result = await targetsAPI.addTarget(targetData)
+                this.targets.push(result.target)
+
+                return result
+
             } catch (error) {
+                console.error('❌ 添加目标失败:', error)
                 this.error = error.message
                 throw error
-            } finally {
-                this.isLoading = false
             }
         },
 
-        /**
-         * 选择目标
-         */
-        async selectTarget(targetId) {
-            if (this.selectedTargetId === targetId) return
-
-            this.selectedTargetId = targetId
-
-            if (targetId) {
-                await this.loadVulnerabilityScan(targetId)
-                await this.loadTrafficData(targetId)
-            }
-        },
-
-        /**
-         * 加载漏洞扫描数据
-         */
-        async loadVulnerabilityScan(targetId) {
+        // 启动扫描
+        async startScan(targetId, scanType = 'full') {
             try {
-                const response = await request.get(`/api/scan/${targetId}`)
+                console.log(`🔍 启动扫描: ${targetId}`)
 
-                if (response.data) {
-                    this.scanResults = response.data
+                const result = await targetsAPI.startScan(targetId, scanType)
 
-                    // 更新漏洞统计
-                    if (response.data.summary) {
-                        this.vulnerabilityStats = {
-                            ...response.data.summary,
-                            total: Object.values(response.data.summary).reduce((sum, count) => sum + count, 0)
-                        }
-                    }
+                // 更新目标状态
+                const target = this.targets.find(t => t.id === targetId)
+                if (target) {
+                    target.scanning = true
                 }
-            } catch (error) {
-                console.error(`❌ 加载扫描数据失败 (${targetId}):`, error)
-                this.scanResults = {}
-                this.vulnerabilityStats = { critical: 0, high: 0, medium: 0, low: 0, total: 0 }
-            }
-        },
 
-        /**
-         * 启动扫描
-         */
-        async startScan(targetId) {
-            try {
-                await request.post(`/api/scan/${targetId}`)
-                console.log(`🔍 扫描已启动: ${targetId}`)
-                return true
+                return result
+
             } catch (error) {
-                console.error(`❌ 启动扫描失败 (${targetId}):`, error)
+                console.error('❌ 启动扫描失败:', error)
+                this.error = error.message
                 throw error
             }
         },
 
-        /**
-         * 加载流量数据
-         */
-        async loadTrafficData(targetId, timeRange = '1h') {
+        // 加载流量数据
+        async loadTrafficData(timeRange = '6h') {
             try {
-                const response = await request.get(`/api/traffic/${targetId}?timeRange=${timeRange}`)
+                console.log(`📊 加载流量数据: ${timeRange}`)
 
-                if (response.data) {
-                    this.trafficData = response.data
-                }
+                const trafficData = await attacksAPI.getTrafficData(timeRange)
+                this.trafficData[timeRange] = trafficData
+
             } catch (error) {
-                console.error(`❌ 加载流量数据失败 (${targetId}):`, error)
-                this.trafficData = {}
+                console.error('❌ 加载流量数据失败:', error)
+                this.error = error.message
             }
         },
 
-        /**
-         * 添加攻击日志
-         */
-        addAttackLog(log) {
-            const newLog = {
-                id: `log_${Date.now()}_${Math.random()}`,
-                timestamp: new Date().toISOString(),
-                ...log
-            }
+        // 模拟攻击
+        async simulateAttack(targetId, methodId) {
+            try {
+                console.log(`⚔️ 模拟攻击: ${targetId} -> ${methodId}`)
 
-            this.attackLogs.unshift(newLog)
-            this.recentAttackLogs.unshift(newLog)
+                const result = await attacksAPI.simulateAttack(targetId, methodId)
 
-            // 限制日志数量
-            if (this.attackLogs.length > 1000) {
-                this.attackLogs = this.attackLogs.slice(0, 1000)
-            }
-            if (this.recentAttackLogs.length > 50) {
-                this.recentAttackLogs = this.recentAttackLogs.slice(0, 50)
-            }
-        },
-
-        /**
-         * 更新目标状态
-         */
-        updateTargetStatus(targetId, status, timestamp) {
-            const target = this.targets.find(t => t.id === targetId)
-            if (target) {
-                target.status = status
-                target.lastSeen = timestamp || new Date().toISOString()
-
-                // 如果是网络节点，同时更新网络拓扑
-                const node = this.networkNodes.find(n => n.id === targetId)
-                if (node) {
-                    node.status = status
+                // 添加到攻击日志
+                if (result.log) {
+                    this.attackLogs.unshift(result.log)
+                    this.realtimeAttackLogs.unshift(result.log)
                 }
+
+                return result
+
+            } catch (error) {
+                console.error('❌ 模拟攻击失败:', error)
+                this.error = error.message
+                throw error
             }
         },
 
-        /**
-         * 更新实时流量
-         */
-        updateRealtimeTraffic(trafficData) {
-            this.realtimeTraffic = {
-                ...this.realtimeTraffic,
-                ...trafficData,
-                timestamp: new Date().toISOString()
-            }
+        // 启动实时数据更新
+        startRealtimeUpdates() {
+            // 每30秒更新一次实时流量
+            setInterval(async () => {
+                try {
+                    const realtimeData = await dashboardAPI.getRealtimeTraffic()
+                    this.realtimeTraffic = realtimeData.traffic
+                } catch (error) {
+                    console.error('❌ 更新实时流量失败:', error)
+                }
+            }, 30000)
         },
 
-        /**
-         * 设置WebSocket监听器
-         */
-        setupWebSocketListeners() {
-            // 监听攻击日志
-            wsHandlers.onAttackLog((data) => {
-                console.log('📨 收到攻击日志:', data)
-                this.addAttackLog(data)
-            })
-
-            // 监听目标状态变化
-            wsHandlers.onTargetStatusChange((data) => {
-                console.log('📨 目标状态变化:', data)
-                this.updateTargetStatus(data.targetId, data.status, data.timestamp)
-            })
-
-            // 监听网络更新
-            wsHandlers.onNetworkUpdate((data) => {
-                console.log('📨 网络拓扑更新:', data)
-                if (data.nodes) this.networkNodes = data.nodes
-                if (data.edges) this.networkEdges = data.edges
-            })
-
-            // 监听扫描结果
-            wsHandlers.onScanResult((data) => {
-                console.log('📨 扫描结果:', data)
-                if (data.targetId === this.selectedTargetId) {
-                    this.scanResults = data.result
-                    if (data.result.summary) {
-                        this.vulnerabilityStats = {
-                            ...data.result.summary,
-                            total: Object.values(data.result.summary).reduce((sum, count) => sum + count, 0)
-                        }
+        // WebSocket消息处理
+        handleWebSocketMessage(message) {
+            switch (message.type) {
+                case 'ATTACK_LOG':
+                    this.attackLogs.unshift(message.data)
+                    this.realtimeAttackLogs.unshift(message.data)
+                    // 保持最近100条
+                    if (this.attackLogs.length > 100) {
+                        this.attackLogs.pop()
                     }
-                }
-            })
+                    break
 
-            // 监听流量更新
-            wsHandlers.onTrafficUpdate((data) => {
-                console.log('📨 流量更新:', data)
-                this.updateRealtimeTraffic(data)
-            })
+                case 'TARGET_STATUS':
+                    const target = this.targets.find(t => t.id === message.data.targetId)
+                    if (target) {
+                        Object.assign(target, message.data.status)
+                    }
+                    break
+
+                case 'SCAN_RESULT':
+                    this.vulnerabilityScans[message.data.targetId] = message.data.results
+                    break
+
+                case 'TRAFFIC_UPDATE':
+                    this.realtimeTraffic = message.data
+                    break
+
+                default:
+                    console.log('🔔 未知WebSocket消息:', message)
+            }
         },
 
-        /**
-         * 清除错误
-         */
+        // 清除错误
         clearError() {
             this.error = null
-        },
-
-        /**
-         * 重置状态
-         */
-        resetState() {
-            this.$reset()
         }
     }
 })

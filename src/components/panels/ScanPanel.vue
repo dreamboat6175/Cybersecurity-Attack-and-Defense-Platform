@@ -1,235 +1,465 @@
 <template>
-  <div class="panel scan-panel">
+  <div class="panel">
     <div class="panel-header">
       <h3 class="panel-title">
         <span class="title-icon">🔍</span>
         漏洞扫描
       </h3>
-      <div class="header-info">
-        <div v-if="selectedTarget" class="target-info">
-          <span class="target-name">{{ selectedTarget.name || selectedTarget.ip }}</span>
-          <span class="vulnerability-count" :class="getVulnerabilityLevel(vulnerabilityStats.critical + vulnerabilityStats.high)">
-            {{ vulnerabilityStats.total }} 个漏洞
+      <div class="panel-actions">
+        <button
+            class="action-btn"
+            @click="startScan"
+            :disabled="isScanning || !selectedTarget"
+            :title="selectedTarget ? '开始扫描' : '请先选择目标'"
+        >
+          <span class="btn-icon" :class="{ spinning: isScanning }">
+            {{ isScanning ? '🔄' : '▶️' }}
           </span>
-        </div>
+        </button>
       </div>
     </div>
 
     <div class="panel-content">
-      <!-- 无目标状态 -->
-      <div v-if="!selectedTarget" class="no-target-state">
-        <div class="state-icon">🎯</div>
-        <p class="state-text">请先选择扫描目标</p>
-        <p class="state-hint">从左侧目标列表中选择一个目标进行漏洞扫描</p>
-      </div>
-
-      <!-- 有目标但无扫描结果 -->
-      <div v-else-if="!hasScanResults && !isScanning" class="no-scan-state">
-        <div class="state-icon">🔍</div>
-        <p class="state-text">暂无扫描数据</p>
-        <button class="start-scan-btn" @click="startScan">
-          <span class="btn-icon">🚀</span>
-          开始扫描
-        </button>
+      <!-- 目标信息 -->
+      <div v-if="selectedTarget" class="target-info-card">
+        <div class="target-header">
+          <span class="target-ip">{{ selectedTarget.ip }}</span>
+          <span class="target-status" :class="selectedTarget.status">
+            {{ getStatusText(selectedTarget.status) }}
+          </span>
+        </div>
+        <div class="scan-meta">
+          <span class="last-scan">
+            上次扫描: {{ formatLastScan(selectedTarget.lastScan) }}
+          </span>
+        </div>
       </div>
 
       <!-- 扫描中状态 -->
-      <div v-else-if="isScanning" class="scanning-state">
+      <div v-if="isScanning" class="scanning-state">
         <div class="scanning-animation">
-          <div class="scan-radar">
-            <div class="radar-sweep"></div>
-            <div class="radar-dots">
-              <div class="dot" v-for="i in 8" :key="i" :style="getDotStyle(i)"></div>
-            </div>
+          <div class="scan-wave"></div>
+          <div class="scan-wave"></div>
+          <div class="scan-wave"></div>
+        </div>
+        <p>正在扫描目标...</p>
+        <div class="scan-progress">
+          <div class="progress-bar">
+            <div class="progress-fill" :style="{ width: scanProgress + '%' }"></div>
           </div>
+          <span class="progress-text">{{ scanProgress }}%</span>
         </div>
-        <p class="scanning-text">正在扫描 {{ selectedTarget.ip }}...</p>
-        <p class="scanning-progress">进度: {{ scanProgress }}%</p>
-        <div class="progress-bar">
-          <div class="progress-fill" :style="{ width: `${scanProgress}%` }"></div>
-        </div>
-        <button class="cancel-scan-btn" @click="cancelScan">
-          取消扫描
-        </button>
       </div>
 
-      <!-- 扫描结果 -->
-      <div v-else class="scan-results">
-        <!-- 雷达图 -->
-        <div class="radar-section">
-          <div class="section-header">
-            <h4>漏洞雷达图</h4>
-            <div class="chart-controls">
-              <button
-                  class="refresh-btn"
-                  @click="refreshScan"
-                  :disabled="isRefreshing"
-                  title="刷新扫描"
-              >
-                <span class="btn-icon" :class="{ spinning: isRefreshing }">🔄</span>
-              </button>
-            </div>
-          </div>
-          <div ref="radarChartRef" class="radar-chart"></div>
-        </div>
+      <!-- 雷达图容器 -->
+      <div v-else-if="scanData" class="radar-container">
+        <div ref="radarRef" class="radar-chart"></div>
 
-        <!-- 漏洞统计 -->
-        <div class="stats-section">
-          <div class="stats-grid">
-            <div class="stat-card critical">
-              <div class="stat-icon">🔴</div>
-              <div class="stat-info">
-                <div class="stat-value">{{ vulnerabilityStats.critical }}</div>
-                <div class="stat-label">严重</div>
-              </div>
+        <!-- 扫描统计 -->
+        <div class="scan-stats">
+          <div class="stat-grid">
+            <div class="stat-item critical">
+              <span class="stat-value">{{ vulnerabilityStats.critical }}</span>
+              <span class="stat-label">严重</span>
             </div>
-            <div class="stat-card high">
-              <div class="stat-icon">🟠</div>
-              <div class="stat-info">
-                <div class="stat-value">{{ vulnerabilityStats.high }}</div>
-                <div class="stat-label">高危</div>
-              </div>
+            <div class="stat-item high">
+              <span class="stat-value">{{ vulnerabilityStats.high }}</span>
+              <span class="stat-label">高危</span>
             </div>
-            <div class="stat-card medium">
-              <div class="stat-icon">🟡</div>
-              <div class="stat-info">
-                <div class="stat-value">{{ vulnerabilityStats.medium }}</div>
-                <div class="stat-label">中危</div>
-              </div>
+            <div class="stat-item medium">
+              <span class="stat-value">{{ vulnerabilityStats.medium }}</span>
+              <span class="stat-label">中危</span>
             </div>
-            <div class="stat-card low">
-              <div class="stat-icon">🟢</div>
-              <div class="stat-info">
-                <div class="stat-value">{{ vulnerabilityStats.low }}</div>
-                <div class="stat-label">低危</div>
-              </div>
+            <div class="stat-item low">
+              <span class="stat-value">{{ vulnerabilityStats.low }}</span>
+              <span class="stat-label">低危</span>
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- 漏洞详情列表 -->
-        <div class="vulnerabilities-section">
-          <div class="section-header">
-            <h4>漏洞详情</h4>
-            <div class="section-controls">
-              <select v-model="severityFilter" class="severity-filter">
-                <option value="">全部级别</option>
-                <option value="critical">严重</option>
-                <option value="high">高危</option>
-                <option value="medium">中危</option>
-                <option value="low">低危</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="vulnerabilities-list">
-            <div
-                v-for="vulnerability in filteredVulnerabilities"
-                :key="vulnerability.id"
-                class="vulnerability-item"
-                :class="vulnerability.severity"
-                @click="selectVulnerability(vulnerability)"
-            >
-              <div class="vuln-severity">
-                <div class="severity-badge" :class="vulnerability.severity">
-                  {{ getSeverityIcon(vulnerability.severity) }}
-                </div>
-              </div>
-
-              <div class="vuln-info">
-                <div class="vuln-header">
-                  <h5 class="vuln-type">{{ vulnerability.type }}</h5>
-                  <span class="cvss-score">CVSS: {{ vulnerability.cvss }}</span>
-                </div>
-                <p class="vuln-description">{{ vulnerability.description }}</p>
-              </div>
-
-              <div class="vuln-expand">
-                <span class="expand-icon">
-                  {{ selectedVulnerability?.id === vulnerability.id ? '▼' : '▶' }}
-                </span>
-              </div>
-            </div>
-
-            <!-- 空状态 -->
-            <div v-if="filteredVulnerabilities.length === 0" class="empty-vulnerabilities">
-              <div class="empty-icon">🔍</div>
-              <p>没有找到相应级别的漏洞</p>
-            </div>
-          </div>
+      <!-- 无数据状态 -->
+      <div v-else class="empty-state">
+        <div class="empty-icon">🔍</div>
+        <div class="empty-text">
+          {{ selectedTarget ? '暂无扫描数据' : '请选择扫描目标' }}
         </div>
-
-        <!-- 漏洞详细信息 -->
-        <Transition name="slide-down">
-          <div v-if="selectedVulnerability" class="vulnerability-details">
-            <div class="details-header">
-              <div class="vuln-title">
-                <span class="severity-badge" :class="selectedVulnerability.severity">
-                  {{ getSeverityIcon(selectedVulnerability.severity) }}
-                </span>
-                <h4>{{ selectedVulnerability.type }}</h4>
-              </div>
-              <button class="close-details" @click="selectedVulnerability = null">×</button>
-            </div>
-
-            <div class="details-content">
-              <div class="detail-section">
-                <h5>描述</h5>
-                <p>{{ selectedVulnerability.description }}</p>
-              </div>
-
-              <div class="detail-section">
-                <h5>风险评分</h5>
-                <div class="cvss-info">
-                  <span class="cvss-score-large">{{ selectedVulnerability.cvss }}</span>
-                  <span class="cvss-level">{{ getCvssLevel(selectedVulnerability.cvss) }}</span>
-                </div>
-              </div>
-
-              <div class="detail-section">
-                <h5>修复建议</h5>
-                <p class="recommendation">{{ selectedVulnerability.recommendation }}</p>
-              </div>
-
-              <div class="detail-actions">
-                <button class="action-btn ignore-btn" @click="ignoreVulnerability(selectedVulnerability)">
-                  <span class="btn-icon">👁️‍🗨️</span>
-                  标记为已知
-                </button>
-                <button class="action-btn fix-btn" @click="markAsFixed(selectedVulnerability)">
-                  <span class="btn-icon">✅</span>
-                  标记为已修复
-                </button>
-              </div>
-            </div>
-          </div>
-        </Transition>
-
-        <!-- 扫描历史 -->
-        <div class="history-section">
-          <div class="section-header">
-            <h4>扫描历史</h4>
-          </div>
-          <div class="scan-history">
-            <div
-                v-for="scan in scanHistory"
-                :key="scan.id"
-                class="history-item"
-                @click="loadHistoryScan(scan)"
-            >
-              <div class="history-time">
-                {{ formatTime(scan.timestamp, 'short') }}
-              </div>
-              <div class="history-stats">
-                <span class="history-count critical">{{ scan.critical || 0 }}</span>
-                <span class="history-count high">{{ scan.high || 0 }}</span>
-                <span class="history-count medium">{{ scan.medium || 0 }}</span>
-                <span class="history-count low">{{ scan.low || 0 }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <button
+            v-if="selectedTarget"
+            class="btn-primary"
+            @click="startScan"
+            :disabled="isScanning"
+        >
+          开始扫描
+        </button>
       </div>
     </div>
   </div>
 </template>
+
+<script setup>
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { useDashboardStore } from '@/stores/dashboard'
+import * as echarts from 'echarts'
+import { formatTime } from '@/utils/format'
+
+const dashboardStore = useDashboardStore()
+
+// 响应式数据
+const radarRef = ref(null)
+const isScanning = ref(false)
+const scanProgress = ref(0)
+let radarChart = null
+
+// 计算属性
+const selectedTarget = computed(() => dashboardStore.selectedTarget)
+const scanData = computed(() => dashboardStore.scanResults[selectedTarget.value?.id])
+const vulnerabilityStats = computed(() => {
+  if (!scanData.value) return { critical: 0, high: 0, medium: 0, low: 0 }
+
+  return {
+    critical: scanData.value.vulnerabilities?.filter(v => v.severity === 'critical').length || 0,
+    high: scanData.value.vulnerabilities?.filter(v => v.severity === 'high').length || 0,
+    medium: scanData.value.vulnerabilities?.filter(v => v.severity === 'medium').length || 0,
+    low: scanData.value.vulnerabilities?.filter(v => v.severity === 'low').length || 0
+  }
+})
+
+// 雷达图配置
+const getRadarOption = () => ({
+  backgroundColor: 'transparent',
+  radar: {
+    indicator: [
+      { name: '端口扫描', max: 100 },
+      { name: '服务识别', max: 100 },
+      { name: '漏洞检测', max: 100 },
+      { name: '配置检查', max: 100 },
+      { name: '安全评估', max: 100 },
+      { name: '合规检查', max: 100 }
+    ],
+    shape: 'polygon',
+    splitNumber: 4,
+    splitArea: {
+      show: true,
+      areaStyle: {
+        color: ['rgba(100, 255, 218, 0.05)', 'rgba(100, 255, 218, 0.1)']
+      }
+    },
+    splitLine: {
+      lineStyle: {
+        color: '#233554'
+      }
+    },
+    axisLine: {
+      lineStyle: {
+        color: '#233554'
+      }
+    },
+    name: {
+      textStyle: {
+        color: '#8892B0',
+        fontSize: 12
+      }
+    }
+  },
+  series: [{
+    type: 'radar',
+    data: [{
+      value: scanData.value ? [
+        scanData.value.portScan || 0,
+        scanData.value.serviceDetection || 0,
+        scanData.value.vulnerability || 0,
+        scanData.value.configCheck || 0,
+        scanData.value.security || 0,
+        scanData.value.compliance || 0
+      ] : [0, 0, 0, 0, 0, 0],
+      name: '扫描评分',
+      areaStyle: {
+        color: 'rgba(100, 255, 218, 0.2)'
+      },
+      lineStyle: {
+        color: '#64FFDA',
+        width: 2
+      },
+      itemStyle: {
+        color: '#64FFDA',
+        borderWidth: 2
+      }
+    }]
+  }]
+})
+
+// 方法
+const initRadarChart = async () => {
+  await nextTick()
+
+  if (radarRef.value && !radarChart) {
+    radarChart = echarts.init(radarRef.value, 'dark')
+    radarChart.setOption(getRadarOption())
+
+    // 监听窗口大小变化
+    window.addEventListener('resize', handleResize)
+  }
+}
+
+const updateRadarChart = () => {
+  if (radarChart) {
+    radarChart.setOption(getRadarOption())
+  }
+}
+
+const handleResize = () => {
+  if (radarChart) {
+    radarChart.resize()
+  }
+}
+
+const startScan = async () => {
+  if (!selectedTarget.value) return
+
+  try {
+    isScanning.value = true
+    scanProgress.value = 0
+
+    // 模拟扫描进度
+    const progressTimer = setInterval(() => {
+      scanProgress.value += Math.random() * 10
+      if (scanProgress.value >= 100) {
+        scanProgress.value = 100
+        clearInterval(progressTimer)
+      }
+    }, 300)
+
+    await dashboardStore.startScan(selectedTarget.value.id)
+
+  } catch (error) {
+    console.error('扫描失败:', error)
+  } finally {
+    isScanning.value = false
+    scanProgress.value = 0
+  }
+}
+
+const getStatusText = (status) => {
+  const statusMap = {
+    'online': '在线',
+    'offline': '离线',
+    'warning': '警告',
+    'danger': '危险'
+  }
+  return statusMap[status] || '未知'
+}
+
+const formatLastScan = (timestamp) => {
+  if (!timestamp) return '从未'
+  return formatTime(timestamp, 'relative')
+}
+
+// 监听器
+watch(() => scanData.value, () => {
+  updateRadarChart()
+}, { deep: true })
+
+watch(() => selectedTarget.value, async () => {
+  if (selectedTarget.value && radarChart) {
+    updateRadarChart()
+  }
+})
+
+// 生命周期
+onMounted(() => {
+  initRadarChart()
+})
+
+onUnmounted(() => {
+  if (radarChart) {
+    radarChart.dispose()
+    radarChart = null
+  }
+  window.removeEventListener('resize', handleResize)
+})
+</script>
+
+<style scoped>
+/* 目标信息卡片 */
+.target-info-card {
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.target-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xs);
+}
+
+.target-ip {
+  font-family: var(--font-family-mono);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.target-status {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+}
+
+.target-status.online {
+  background-color: rgba(0, 212, 170, 0.2);
+  color: var(--color-success);
+}
+
+.target-status.warning {
+  background-color: rgba(255, 193, 7, 0.2);
+  color: var(--color-warning);
+}
+
+.target-status.danger {
+  background-color: rgba(244, 67, 54, 0.2);
+  color: var(--color-danger);
+}
+
+.scan-meta {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+/* 扫描状态 */
+.scanning-state {
+  text-align: center;
+  padding: var(--spacing-xl) 0;
+}
+
+.scanning-animation {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  margin: 0 auto var(--spacing-md);
+}
+
+.scan-wave {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 2px solid var(--color-text-accent);
+  border-radius: 50%;
+  animation: scan-pulse 2s ease-out infinite;
+}
+
+.scan-wave:nth-child(2) {
+  animation-delay: 0.5s;
+}
+
+.scan-wave:nth-child(3) {
+  animation-delay: 1s;
+}
+
+@keyframes scan-pulse {
+  0% {
+    transform: scale(0.1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.2);
+    opacity: 0;
+  }
+}
+
+.scan-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}
+
+.progress-bar {
+  flex: 1;
+  height: 6px;
+  background-color: var(--color-bg-primary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-text-accent), #4ECDC4);
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  min-width: 40px;
+}
+
+/* 雷达图 */
+.radar-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.radar-chart {
+  flex: 1;
+  min-height: 200px;
+}
+
+/* 扫描统计 */
+.scan-stats {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-border);
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-sm);
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-sm);
+  background-color: var(--color-bg-primary);
+  border-radius: var(--border-radius-sm);
+  border-left: 3px solid var(--color-text-secondary);
+}
+
+.stat-item.critical {
+  border-left-color: var(--color-danger);
+}
+
+.stat-item.high {
+  border-left-color: #FF9800;
+}
+
+.stat-item.medium {
+  border-left-color: var(--color-warning);
+}
+
+.stat-item.low {
+  border-left-color: var(--color-info);
+}
+
+.stat-value {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.stat-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-top: var(--spacing-xs);
+}
+</style>

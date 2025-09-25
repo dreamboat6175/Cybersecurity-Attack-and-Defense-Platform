@@ -1,60 +1,21 @@
 <template>
-  <div class="panel network-panel">
+  <div class="panel">
     <div class="panel-header">
       <h3 class="panel-title">
         <span class="title-icon">🌐</span>
         网络拓扑
       </h3>
-      <div class="header-controls">
-        <div class="layout-controls">
-          <button
-              class="layout-btn"
-              :class="{ active: currentLayout === 'force' }"
-              @click="setLayout('force')"
-              title="力导向布局"
-          >
-            ⭕
-          </button>
-          <button
-              class="layout-btn"
-              :class="{ active: currentLayout === 'radial' }"
-              @click="setLayout('radial')"
-              title="径向布局"
-          >
-            🎯
-          </button>
-          <button
-              class="layout-btn"
-              :class="{ active: currentLayout === 'grid' }"
-              @click="setLayout('grid')"
-              title="网格布局"
-          >
-            ⬜
-          </button>
-        </div>
-        <div class="view-controls">
-          <button
-              class="control-btn"
-              @click="centerGraph"
-              title="居中显示"
-          >
-            🎪
-          </button>
-          <button
-              class="control-btn"
-              @click="resetZoom"
-              title="重置缩放"
-          >
-            🔍
-          </button>
-          <button
-              class="control-btn"
-              @click="toggleFullscreen"
-              title="全屏显示"
-          >
-            {{ isFullscreen ? '⤸' : '⤢' }}
-          </button>
-        </div>
+      <div class="panel-actions">
+        <button
+            class="action-btn"
+            @click="toggleFullscreen"
+            :title="isFullscreen ? '退出全屏' : '全屏显示'"
+        >
+          <span class="btn-icon">{{ isFullscreen ? '⤸' : '⤢' }}</span>
+        </button>
+        <button class="action-btn" @click="refreshNetwork" :disabled="isLoading">
+          <span class="btn-icon" :class="{ spinning: isLoading }">🔄</span>
+        </button>
       </div>
     </div>
 
@@ -122,77 +83,51 @@
               <div class="detail-section">
                 <h5>服务端口</h5>
                 <div class="services-list">
-                  <div
-                      v-for="service in getNodeServices(selectedNode.id)"
+                  <span
+                      v-for="service in selectedNode.services || []"
                       :key="service"
-                      class="service-item"
+                      class="service-tag"
                   >
                     {{ service }}
-                  </div>
+                  </span>
                 </div>
               </div>
 
               <div class="detail-section">
-                <h5>流量统计</h5>
-                <div class="traffic-stats">
-                  <div class="traffic-item">
-                    <span class="traffic-label">入站:</span>
-                    <span class="traffic-value">{{ formatTraffic(getNodeTraffic(selectedNode.id, 'in')) }}</span>
-                  </div>
-                  <div class="traffic-item">
-                    <span class="traffic-label">出站:</span>
-                    <span class="traffic-value">{{ formatTraffic(getNodeTraffic(selectedNode.id, 'out')) }}</span>
+                <h5>最近活动</h5>
+                <div class="activity-list">
+                  <div
+                      v-for="activity in getNodeActivity(selectedNode.id)"
+                      :key="activity.id"
+                      class="activity-item"
+                  >
+                    <span class="activity-time">{{ formatTime(activity.timestamp) }}</span>
+                    <span class="activity-desc">{{ activity.description }}</span>
                   </div>
                 </div>
-              </div>
-
-              <div class="detail-actions">
-                <button
-                    class="action-btn scan-btn"
-                    @click="scanNode(selectedNode)"
-                    :disabled="selectedNode.status === 'offline'"
-                >
-                  <span class="btn-icon">🔍</span>
-                  扫描节点
-                </button>
-                <button
-                    class="action-btn ping-btn"
-                    @click="pingNode(selectedNode)"
-                    :disabled="selectedNode.status === 'offline'"
-                >
-                  <span class="btn-icon">📡</span>
-                  Ping测试
-                </button>
               </div>
             </div>
           </div>
         </Transition>
+      </div>
 
-        <!-- 图例 -->
-        <div class="network-legend">
-          <div class="legend-title">图例</div>
-          <div class="legend-items">
-            <div class="legend-item">
-              <span class="legend-icon">🖥️</span>
-              <span class="legend-text">服务器</span>
-            </div>
-            <div class="legend-item">
-              <span class="legend-icon">💻</span>
-              <span class="legend-text">客户端</span>
-            </div>
-            <div class="legend-item">
-              <span class="legend-icon">🌐</span>
-              <span class="legend-text">路由器</span>
-            </div>
-            <div class="legend-item">
-              <span class="legend-icon">🛡️</span>
-              <span class="legend-text">防火墙</span>
-            </div>
-            <div class="legend-item">
-              <span class="legend-icon">🗄️</span>
-              <span class="legend-text">数据库</span>
-            </div>
-          </div>
+      <!-- 控制面板 -->
+      <div class="control-panel">
+        <div class="layout-controls">
+          <button
+              v-for="layout in layouts"
+              :key="layout.type"
+              :class="['layout-btn', { active: currentLayout === layout.type }]"
+              @click="changeLayout(layout.type)"
+              :title="layout.name"
+          >
+            {{ layout.icon }}
+          </button>
+        </div>
+        <div class="zoom-controls">
+          <button class="zoom-btn" @click="zoomIn">+</button>
+          <button class="zoom-btn" @click="zoomOut">-</button>
+          <button class="zoom-btn" @click="fitView">⌂</button>
         </div>
       </div>
     </div>
@@ -200,277 +135,361 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useDashboardStore } from '@/stores/dashboard'
-import { formatTraffic } from '@/utils/format'
 import G6 from '@antv/g6'
+import { formatTime } from '@/utils/format'
 
-// Store
 const dashboardStore = useDashboardStore()
 
 // 响应式数据
 const networkRef = ref(null)
-const currentLayout = ref('force')
 const selectedNode = ref(null)
+const isLoading = ref(false)
 const isFullscreen = ref(false)
+const currentLayout = ref('force')
 let graph = null
 
+// 布局选项
+const layouts = [
+  { type: 'force', name: '力导向', icon: '⚡' },
+  { type: 'circular', name: '环形', icon: '⭕' },
+  { type: 'radial', name: '辐射', icon: '🎯' },
+  { type: 'grid', name: '网格', icon: '⚏' }
+]
+
 // 计算属性
-const isLoading = computed(() => dashboardStore.isLoading)
 const networkNodes = computed(() => dashboardStore.networkNodes)
 const networkEdges = computed(() => dashboardStore.networkEdges)
+const onlineNodesCount = computed(() =>
+    networkNodes.value.filter(node => node.status === 'online').length
+)
 
-const onlineNodesCount = computed(() => {
-  return networkNodes.value.filter(node => node.status === 'active' || node.status === 'normal').length
+// G6图配置
+const getGraphConfig = () => ({
+  container: networkRef.value,
+  width: networkRef.value.clientWidth,
+  height: networkRef.value.clientHeight,
+
+  // 布局配置
+  layout: getLayoutConfig(currentLayout.value),
+
+  // 默认节点样式
+  defaultNode: {
+    type: 'circle',
+    size: [40, 40],
+    style: {
+      fill: '#112240',
+      stroke: '#233554',
+      lineWidth: 2
+    },
+    labelCfg: {
+      style: {
+        fill: '#8892B0',
+        fontSize: 12
+      }
+    }
+  },
+
+  // 默认边样式
+  defaultEdge: {
+    type: 'line',
+    style: {
+      stroke: '#233554',
+      lineWidth: 1,
+      endArrow: {
+        path: G6.Arrow.vee(8, 8),
+        fill: '#233554'
+      }
+    }
+  },
+
+  // 节点状态样式
+  nodeStateStyles: {
+    hover: {
+      stroke: '#64FFDA',
+      lineWidth: 3,
+      shadowColor: 'rgba(100, 255, 218, 0.5)',
+      shadowBlur: 10
+    },
+    selected: {
+      stroke: '#64FFDA',
+      lineWidth: 3,
+      fill: 'rgba(100, 255, 218, 0.1)'
+    },
+    warning: {
+      fill: 'rgba(255, 193, 7, 0.2)',
+      stroke: '#FFC107'
+    },
+    danger: {
+      fill: 'rgba(244, 67, 54, 0.2)',
+      stroke: '#F44336'
+    }
+  },
+
+  // 边状态样式
+  edgeStateStyles: {
+    hover: {
+      stroke: '#64FFDA',
+      lineWidth: 2
+    },
+    selected: {
+      stroke: '#64FFDA',
+      lineWidth: 3
+    }
+  },
+
+  // 交互模式
+  modes: {
+    default: [
+      'drag-canvas',
+      'zoom-canvas',
+      'drag-node',
+      'hover-node',
+      'hover-edge',
+      'click-select'
+    ]
+  },
+
+  // 动画配置
+  animate: true,
+  animateCfg: {
+    duration: 300,
+    easing: 'easeLinear'
+  }
 })
 
-// 方法
-const initializeGraph = () => {
-  if (!networkRef.value || graph) return
-
-  const container = networkRef.value
-  const width = container.clientWidth
-  const height = container.clientHeight
-
-  graph = new G6.Graph({
-    container: networkRef.value,
-    width,
-    height,
-    fitView: true,
-    fitViewPadding: 20,
-    modes: {
-      default: [
-        'drag-canvas',
-        'zoom-canvas',
-        'drag-node'
-      ]
-    },
-    layout: {
+// 获取布局配置
+const getLayoutConfig = (layoutType) => {
+  const configs = {
+    force: {
       type: 'force',
       preventOverlap: true,
       nodeSize: 40,
-      linkDistance: 150,
-      nodeStrength: -200,
-      edgeStrength: 0.2,
-      coulombDisScale: 0.005
+      linkDistance: 100,
+      nodeStrength: -100,
+      edgeStrength: 0.2
     },
-    defaultNode: {
-      type: 'circle',
-      size: 40,
-      style: {
-        fill: '#112240',
-        stroke: '#64FFDA',
-        lineWidth: 2,
-        cursor: 'pointer'
-      },
-      labelCfg: {
-        position: 'bottom',
-        offset: 5,
-        style: {
-          fill: '#CCD6F6',
-          fontSize: 12,
-          fontWeight: 500
-        }
-      }
+    circular: {
+      type: 'circular',
+      radius: 150,
+      startRadius: 50,
+      endRadius: 200
     },
-    defaultEdge: {
-      type: 'line',
-      style: {
-        stroke: '#233554',
-        lineWidth: 2,
-        endArrow: {
-          path: G6.Arrow.triangle(8, 6, 0),
-          fill: '#233554'
-        }
-      }
+    radial: {
+      type: 'radial',
+      center: [250, 150],
+      linkDistance: 100,
+      maxIteration: 1000,
+      focusNode: getCenterNodeId()
     },
-    nodeStateStyles: {
-      hover: {
-        fill: '#1D2D4A',
-        stroke: '#4ECDC4',
-        lineWidth: 3
-      },
-      selected: {
-        fill: '#64FFDA',
-        stroke: '#4ECDC4',
-        lineWidth: 4
-      }
-    },
-    edgeStateStyles: {
-      hover: {
-        stroke: '#64FFDA',
-        lineWidth: 3
-      },
-      highlight: {
-        stroke: '#64FFDA',
-        lineWidth: 3,
-        shadowBlur: 10,
-        shadowColor: '#64FFDA'
-      }
+    grid: {
+      type: 'grid',
+      rows: Math.ceil(Math.sqrt(networkNodes.value.length)),
+      cols: Math.ceil(Math.sqrt(networkNodes.value.length)),
+      sortBy: 'degree'
     }
-  })
+  }
 
-  // 绑定事件
-  setupGraphEvents()
-
-  // 渲染图数据
-  renderGraph()
+  return configs[layoutType] || configs.force
 }
 
-const setupGraphEvents = () => {
+// 方法
+const initGraph = async () => {
+  await nextTick()
+
+  if (!networkRef.value || graph) return
+
+  try {
+    graph = new G6.Graph(getGraphConfig())
+
+    // 绑定事件
+    bindGraphEvents()
+
+    // 加载数据
+    updateGraphData()
+
+    // 渲染图
+    graph.render()
+
+  } catch (error) {
+    console.error('初始化网络图失败:', error)
+  }
+}
+
+const bindGraphEvents = () => {
   if (!graph) return
 
   // 节点点击事件
   graph.on('node:click', (evt) => {
     const { item } = evt
-    const nodeModel = item.getModel()
-    selectedNode.value = nodeModel
-
-    // 清除之前的状态
-    graph.getNodes().forEach(node => {
-      graph.clearItemStates(node, ['selected'])
-    })
-    graph.getEdges().forEach(edge => {
-      graph.clearItemStates(edge, ['highlight'])
-    })
+    const model = item.getModel()
+    selectedNode.value = model
 
     // 设置选中状态
     graph.setItemState(item, 'selected', true)
+  })
 
-    // 高亮相邻边
-    const edges = item.getEdges()
-    edges.forEach(edge => {
-      graph.setItemState(edge, 'highlight', true)
+  // 画布点击事件
+  graph.on('canvas:click', () => {
+    // 清除选中状态
+    const selectedNodes = graph.findAllByState('node', 'selected')
+    selectedNodes.forEach(node => {
+      graph.setItemState(node, 'selected', false)
     })
+    selectedNode.value = null
   })
 
   // 节点悬停事件
   graph.on('node:mouseenter', (evt) => {
-    graph.setItemState(evt.item, 'hover', true)
+    const { item } = evt
+    graph.setItemState(item, 'hover', true)
   })
 
   graph.on('node:mouseleave', (evt) => {
-    graph.setItemState(evt.item, 'hover', false)
-  })
-
-  // 画布点击事件（取消选择）
-  graph.on('canvas:click', () => {
-    selectedNode.value = null
-    graph.getNodes().forEach(node => {
-      graph.clearItemStates(node, ['selected'])
-    })
-    graph.getEdges().forEach(edge => {
-      graph.clearItemStates(edge, ['highlight'])
-    })
-  })
-
-  // 边悬停事件
-  graph.on('edge:mouseenter', (evt) => {
-    graph.setItemState(evt.item, 'hover', true)
-  })
-
-  graph.on('edge:mouseleave', (evt) => {
-    graph.setItemState(evt.item, 'hover', false)
+    const { item } = evt
+    graph.setItemState(item, 'hover', false)
   })
 }
 
-const renderGraph = () => {
+const updateGraphData = () => {
   if (!graph) return
 
-  // 处理节点数据
-  const nodes = networkNodes.value.map(node => ({
-    ...node,
-    style: {
-      fill: getNodeColor(node.status),
-      stroke: getNodeBorderColor(node.status)
-    }
-  }))
+  const data = {
+    nodes: networkNodes.value.map(node => ({
+      ...node,
+      style: getNodeStyle(node)
+    })),
+    edges: networkEdges.value
+  }
 
-  // 处理边数据
-  const edges = networkEdges.value.map(edge => ({
-    ...edge,
-    style: {
-      stroke: getEdgeColor(edge.type),
-      lineWidth: getEdgeWidth(edge.type)
-    }
-  }))
-
-  graph.data({ nodes, edges })
+  graph.data(data)
   graph.render()
-  graph.fitView()
+
+  // 设置节点状态
+  networkNodes.value.forEach(node => {
+    const item = graph.findById(node.id)
+    if (item && node.status) {
+      graph.setItemState(item, node.status, true)
+    }
+  })
 }
 
-const getNodeColor = (status) => {
-  const colors = {
-    active: '#112240',
-    normal: '#112240',
-    warning: '#1A2332',
-    danger: '#1F1A2E',
-    offline: '#0F1419'
+const getNodeStyle = (node) => {
+  const baseStyle = {
+    fill: '#112240',
+    stroke: '#233554'
   }
-  return colors[status] || colors.normal
+
+  // 根据节点类型设置样式
+  if (node.type === 'central') {
+    return {
+      ...baseStyle,
+      fill: 'rgba(244, 67, 54, 0.2)',
+      stroke: '#F44336'
+    }
+  }
+
+  // 根据状态设置样式
+  switch (node.status) {
+    case 'online':
+      return { ...baseStyle, stroke: '#00D4AA' }
+    case 'warning':
+      return { ...baseStyle, stroke: '#FFC107' }
+    case 'danger':
+      return { ...baseStyle, stroke: '#F44336' }
+    default:
+      return baseStyle
+  }
 }
 
-const getNodeBorderColor = (status) => {
-  const colors = {
-    active: '#64FFDA',
-    normal: '#64FFDA',
-    warning: '#FFC107',
-    danger: '#F44336',
-    offline: '#8892B0'
-  }
-  return colors[status] || colors.normal
+const changeLayout = (layoutType) => {
+  if (!graph || currentLayout.value === layoutType) return
+
+  currentLayout.value = layoutType
+
+  graph.updateLayout(getLayoutConfig(layoutType))
 }
 
-const getEdgeColor = (type) => {
-  const colors = {
-    normal: '#233554',
-    warning: '#FFC107',
-    danger: '#F44336'
+const zoomIn = () => {
+  if (graph) {
+    const currentZoom = graph.getZoom()
+    graph.zoomTo(Math.min(currentZoom * 1.2, 3))
   }
-  return colors[type] || colors.normal
 }
 
-const getEdgeWidth = (type) => {
-  const widths = {
-    normal: 2,
-    warning: 3,
-    danger: 4
+const zoomOut = () => {
+  if (graph) {
+    const currentZoom = graph.getZoom()
+    graph.zoomTo(Math.max(currentZoom * 0.8, 0.2))
   }
-  return widths[type] || 2
+}
+
+const fitView = () => {
+  if (graph) {
+    graph.fitView(20)
+  }
+}
+
+const toggleFullscreen = () => {
+  isFullscreen.value = !isFullscreen.value
+
+  // 延迟调整图大小，等待CSS transition完成
+  setTimeout(() => {
+    if (graph) {
+      graph.changeSize(networkRef.value.clientWidth, networkRef.value.clientHeight)
+      graph.fitView(20)
+    }
+  }, 300)
+}
+
+const refreshNetwork = async () => {
+  try {
+    isLoading.value = true
+    await dashboardStore.refreshNetworkData()
+  } catch (error) {
+    console.error('刷新网络数据失败:', error)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// 工具方法
+const getCenterNodeId = () => {
+  const centralNode = networkNodes.value.find(node => node.type === 'central')
+  return centralNode ? centralNode.id : null
 }
 
 const getNodeIcon = (type) => {
   const icons = {
-    server: '🖥️',
-    client: '💻',
-    router: '🌐',
-    firewall: '🛡️',
-    database: '🗄️'
+    'central': '🎯',
+    'server': '🖥️',
+    'client': '💻',
+    'router': '🌐',
+    'firewall': '🛡️'
   }
-  return icons[type] || '🖥️'
+  return icons[type] || '💻'
 }
 
 const getNodeTypeName = (type) => {
   const names = {
-    server: '服务器',
-    client: '客户端',
-    router: '路由器',
-    firewall: '防火墙',
-    database: '数据库'
+    'central': '中心节点',
+    'server': '服务器',
+    'client': '客户端',
+    'router': '路由器',
+    'firewall': '防火墙'
   }
   return names[type] || '未知'
 }
 
 const getStatusText = (status) => {
-  const texts = {
-    active: '活跃',
-    normal: '正常',
-    warning: '警告',
-    danger: '危险',
-    offline: '离线'
+  const statusMap = {
+    'online': '在线',
+    'offline': '离线',
+    'warning': '警告',
+    'danger': '危险'
   }
-  return texts[status] || '未知'
+  return statusMap[status] || '未知'
 }
 
 const getNodeConnections = (nodeId) => {
@@ -479,109 +498,25 @@ const getNodeConnections = (nodeId) => {
   ).length
 }
 
-const getNodeServices = (nodeId) => {
-  // 从目标列表中查找对应的服务信息
-  const target = dashboardStore.targets.find(t => t.id === nodeId)
-  return target?.services || ['HTTP:80', 'HTTPS:443']
+const getNodeActivity = (nodeId) => {
+  return dashboardStore.recentAttackLogs
+      .filter(log => log.target === nodeId)
+      .slice(0, 5)
+      .map(log => ({
+        id: log.id,
+        timestamp: log.timestamp,
+        description: log.description
+      }))
 }
 
-const getNodeTraffic = (nodeId, direction) => {
-  // 模拟流量数据
-  return Math.floor(Math.random() * 1000000)
-}
-
-const setLayout = (layoutType) => {
-  if (!graph || currentLayout.value === layoutType) return
-
-  currentLayout.value = layoutType
-
-  const layouts = {
-    force: {
-      type: 'force',
-      preventOverlap: true,
-      nodeSize: 40,
-      linkDistance: 150
-    },
-    radial: {
-      type: 'radial',
-      center: [0, 0],
-      linkDistance: 150,
-      maxIteration: 1000
-    },
-    grid: {
-      type: 'grid',
-      preventOverlap: true,
-      nodeSize: 40,
-      condense: false
-    }
-  }
-
-  graph.updateLayout(layouts[layoutType])
-}
-
-const centerGraph = () => {
-  if (!graph) return
-  graph.fitCenter()
-}
-
-const resetZoom = () => {
-  if (!graph) return
-  graph.zoomTo(1)
-  graph.fitView()
-}
-
-const toggleFullscreen = () => {
-  isFullscreen.value = !isFullscreen.value
-
-  nextTick(() => {
-    if (graph) {
-      const container = networkRef.value
-      const width = container.clientWidth
-      const height = container.clientHeight
-      graph.changeSize(width, height)
-      graph.fitView()
-    }
-  })
-}
-
-const scanNode = async (node) => {
-  try {
-    console.log('🔍 扫描节点:', node.label)
-    await dashboardStore.startScan(node.id)
-    // 这里可以显示扫描启动的提示
-  } catch (error) {
-    console.error('❌ 节点扫描失败:', error)
-  }
-}
-
-const pingNode = async (node) => {
-  try {
-    console.log('📡 Ping节点:', node.ip)
-    // 模拟ping测试
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    console.log('✅ Ping成功')
-  } catch (error) {
-    console.error('❌ Ping失败:', error)
-  }
-}
-
-// 监听窗口大小变化
-const handleResize = () => {
-  if (graph && networkRef.value) {
-    const container = networkRef.value
-    const width = container.clientWidth
-    const height = container.clientHeight
-    graph.changeSize(width, height)
-    graph.fitView()
-  }
-}
+// 监听器
+watch(() => [networkNodes.value, networkEdges.value], () => {
+  updateGraphData()
+}, { deep: true })
 
 // 生命周期
 onMounted(() => {
-  nextTick(() => {
-    initializeGraph()
-    window.addEventListener('resize', handleResize)
-  })
+  initGraph()
 })
 
 onUnmounted(() => {
@@ -589,71 +524,23 @@ onUnmounted(() => {
     graph.destroy()
     graph = null
   }
-  window.removeEventListener('resize', handleResize)
-})
-
-// 监听数据变化
-watch([networkNodes, networkEdges], () => {
-  if (graph) {
-    renderGraph()
-  }
 })
 </script>
 
 <style scoped>
-.network-panel {
-  height: 100%;
-  position: relative;
-}
-
-/* 头部控件 */
-.header-controls {
-  display: flex;
-  gap: var(--spacing-md);
-  align-items: center;
-}
-
-.layout-controls,
-.view-controls {
-  display: flex;
-  gap: var(--spacing-xs);
-}
-
-.layout-btn,
-.control-btn {
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--color-border);
-  background-color: transparent;
-  color: var(--color-text-secondary);
-  border-radius: var(--border-radius-sm);
-  cursor: pointer;
-  transition: all var(--transition-base);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--font-size-sm);
-}
-
-.layout-btn:hover,
-.control-btn:hover {
-  border-color: var(--color-text-accent);
-  color: var(--color-text-accent);
-}
-
-.layout-btn.active {
-  background-color: var(--color-text-accent);
-  color: var(--color-bg-primary);
-  border-color: var(--color-text-accent);
-}
-
 /* 网络容器 */
 .network-container {
   position: relative;
   height: 100%;
-  overflow: hidden;
+  width: 100%;
 }
 
+.network-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+/* 全屏模式 */
 .panel-content.fullscreen {
   position: fixed;
   top: 0;
@@ -661,13 +548,8 @@ watch([networkNodes, networkEdges], () => {
   right: 0;
   bottom: 0;
   z-index: var(--z-modal);
-  background-color: var(--color-bg-primary);
-}
-
-.network-canvas {
-  width: 100%;
-  height: 100%;
-  background-color: transparent;
+  background-color: var(--color-bg-secondary);
+  padding: var(--spacing-lg);
 }
 
 /* 网络信息面板 */
@@ -676,32 +558,34 @@ watch([networkNodes, networkEdges], () => {
   top: var(--spacing-md);
   left: var(--spacing-md);
   background-color: rgba(17, 34, 64, 0.9);
-  backdrop-filter: blur(10px);
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius-sm);
-  padding: var(--spacing-md);
+  padding: var(--spacing-sm);
+  backdrop-filter: blur(8px);
 }
 
 .info-stats {
   display: flex;
-  gap: var(--spacing-lg);
+  gap: var(--spacing-md);
 }
 
 .stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
 }
 
 .stat-value {
-  display: block;
   font-size: var(--font-size-lg);
-  font-weight: 600;
-  color: var(--color-text-accent);
-  margin-bottom: var(--spacing-xs);
+  font-weight: 700;
+  color: var(--color-text-primary);
 }
 
 .stat-label {
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
+  margin-top: var(--spacing-xs);
 }
 
 /* 节点详情面板 */
@@ -709,13 +593,12 @@ watch([networkNodes, networkEdges], () => {
   position: absolute;
   top: var(--spacing-md);
   right: var(--spacing-md);
-  width: 300px;
-  max-height: 80%;
+  width: 280px;
   background-color: rgba(17, 34, 64, 0.95);
-  backdrop-filter: blur(10px);
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius-md);
-  overflow-y: auto;
+  backdrop-filter: blur(12px);
+  overflow: hidden;
 }
 
 .details-header {
@@ -728,39 +611,44 @@ watch([networkNodes, networkEdges], () => {
 }
 
 .node-icon {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
 }
 
 .details-header h4 {
   flex: 1;
   margin: 0;
-  color: var(--color-text-primary);
   font-size: var(--font-size-base);
+  color: var(--color-text-primary);
 }
 
 .close-details {
   background: none;
   border: none;
   color: var(--color-text-secondary);
-  font-size: var(--font-size-lg);
   cursor: pointer;
+  font-size: var(--font-size-lg);
   width: 24px;
   height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: var(--border-radius-sm);
   transition: all var(--transition-base);
 }
 
 .close-details:hover {
-  background-color: var(--color-bg-secondary);
+  background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
 }
 
 .details-content {
   padding: var(--spacing-md);
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 .detail-section {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .detail-section:last-child {
@@ -769,8 +657,8 @@ watch([networkNodes, networkEdges], () => {
 
 .detail-section h5 {
   margin: 0 0 var(--spacing-sm);
-  color: var(--color-text-accent);
   font-size: var(--font-size-sm);
+  color: var(--color-text-accent);
   font-weight: 600;
 }
 
@@ -778,28 +666,22 @@ watch([networkNodes, networkEdges], () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-sm);
-  padding: var(--spacing-xs) 0;
-}
-
-.detail-row:last-child {
-  margin-bottom: 0;
+  margin-bottom: var(--spacing-xs);
 }
 
 .detail-label {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
 }
 
 .detail-value {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   color: var(--color-text-primary);
   font-weight: 500;
 }
 
 .detail-value.ip {
   font-family: var(--font-family-mono);
-  color: var(--color-text-accent);
 }
 
 .detail-value.status {
@@ -809,190 +691,163 @@ watch([networkNodes, networkEdges], () => {
 }
 
 .status-dot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
+  background-color: var(--color-text-secondary);
 }
 
-.status.active .status-dot,
-.status.normal .status-dot { background-color: var(--color-success); }
-.status.warning .status-dot { background-color: var(--color-warning); }
-.status.danger .status-dot { background-color: var(--color-danger); }
-.status.offline .status-dot { background-color: var(--color-text-secondary); }
+.status.online .status-dot {
+  background-color: var(--color-success);
+}
 
+.status.warning .status-dot {
+  background-color: var(--color-warning);
+}
+
+.status.danger .status-dot {
+  background-color: var(--color-danger);
+}
+
+/* 服务列表 */
 .services-list {
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-xs);
 }
 
-.service-item {
+.service-tag {
+  padding: var(--spacing-xs) var(--spacing-sm);
   background-color: var(--color-bg-primary);
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius-sm);
-  padding: var(--spacing-xs) var(--spacing-sm);
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
   font-family: var(--font-family-mono);
 }
 
-.traffic-stats {
+/* 活动列表 */
+.activity-list {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-xs);
 }
 
-.traffic-item {
+.activity-item {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.traffic-label {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-}
-
-.traffic-value {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-accent);
-  font-weight: 600;
-}
-
-.detail-actions {
-  display: flex;
-  gap: var(--spacing-sm);
-  margin-top: var(--spacing-md);
-}
-
-.action-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
   gap: var(--spacing-xs);
   padding: var(--spacing-sm);
-  border: 1px solid var(--color-border);
-  background-color: transparent;
-  color: var(--color-text-secondary);
+  background-color: var(--color-bg-primary);
   border-radius: var(--border-radius-sm);
-  cursor: pointer;
+  border-left: 2px solid var(--color-border);
+}
+
+.activity-time {
   font-size: var(--font-size-xs);
-  transition: all var(--transition-base);
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-mono);
 }
 
-.action-btn:hover:not(:disabled) {
-  border-color: var(--color-text-accent);
-  color: var(--color-text-accent);
+.activity-desc {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-primary);
 }
 
-.action-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-icon {
-  font-size: var(--font-size-sm);
-}
-
-/* 图例 */
-.network-legend {
+/* 控制面板 */
+.control-panel {
   position: absolute;
   bottom: var(--spacing-md);
   left: var(--spacing-md);
+  display: flex;
+  gap: var(--spacing-md);
+}
+
+.layout-controls,
+.zoom-controls {
+  display: flex;
   background-color: rgba(17, 34, 64, 0.9);
-  backdrop-filter: blur(10px);
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius-sm);
-  padding: var(--spacing-md);
+  backdrop-filter: blur(8px);
 }
 
-.legend-title {
+.layout-btn,
+.zoom-btn {
+  padding: var(--spacing-sm);
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
   font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--color-text-primary);
-  margin-bottom: var(--spacing-sm);
-}
-
-.legend-items {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
-}
-
-.legend-item {
+  transition: all var(--transition-base);
+  min-width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  justify-content: center;
 }
 
-.legend-icon {
-  font-size: var(--font-size-base);
-  width: 20px;
-  text-align: center;
+.layout-btn:hover,
+.zoom-btn:hover {
+  color: var(--color-text-accent);
+  background-color: var(--color-bg-primary);
 }
 
-.legend-text {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
+.layout-btn.active {
+  color: var(--color-text-accent);
+  background-color: var(--color-bg-primary);
 }
 
-/* 动画效果 */
+.layout-btn:not(:last-child),
+.zoom-btn:not(:last-child) {
+  border-right: 1px solid var(--color-border);
+}
+
+/* 动画 */
 .slide-in-enter-active,
 .slide-in-leave-active {
-  transition: all var(--transition-base);
+  transition: all 0.3s ease;
 }
 
-.slide-in-enter-from,
-.slide-in-leave-to {
+.slide-in-enter-from {
+  transform: translateX(100%);
   opacity: 0;
-  transform: translateX(20px);
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .header-controls {
-    flex-direction: column;
-    gap: var(--spacing-sm);
-  }
+.slide-in-leave-to {
+  transform: translateX(100%);
+  opacity: 0;
+}
 
+/* 响应式 */
+@media (max-width: 1024px) {
   .node-details {
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 100%;
-    max-width: 320px;
-    max-height: none;
-    z-index: var(--z-modal);
+    width: 260px;
   }
 
-  .network-info {
-    top: auto;
-    bottom: 80px;
-    left: var(--spacing-sm);
-    right: var(--spacing-sm);
-  }
-
-  .info-stats {
-    justify-content: space-around;
-  }
-
-  .network-legend {
+  .control-panel {
     bottom: var(--spacing-sm);
     left: var(--spacing-sm);
   }
 }
 
-@media (max-width: 480px) {
-  .layout-controls,
-  .view-controls {
-    width: 100%;
-    justify-content: space-between;
+@media (max-width: 768px) {
+  .network-info {
+    position: relative;
+    margin-bottom: var(--spacing-md);
   }
 
-  .network-info {
-    bottom: 100px;
+  .node-details {
+    position: relative;
+    width: 100%;
+    margin-top: var(--spacing-md);
+  }
+
+  .control-panel {
+    position: relative;
+    justify-content: center;
+    margin-top: var(--spacing-md);
   }
 }
 </style>
