@@ -1,8 +1,16 @@
-// src/mock/index.js - 修复版本
+// src/mock/index.js - 彻底修复版本：确保Mock绑定到正确的axios实例
 let mock = null
+let isInitialized = false
 
 export function initializeMock() {
     console.log('🔧 Mock初始化开始...')
+
+    // 如果已经初始化过，直接返回
+    if (isInitialized) {
+        console.log('✅ Mock已经初始化，跳过')
+        return Promise.resolve()
+    }
+
     console.log('环境变量检查:', {
         VITE_USE_MOCK: import.meta.env.VITE_USE_MOCK,
         DEV: import.meta.env.DEV
@@ -20,28 +28,34 @@ export function initializeMock() {
 
     console.log('✅ Mock模式已启用，开始初始化...')
 
-    // 使用Promise.all同时加载所有依赖
+    // 关键修复：导入我们实际使用的API实例，而不是默认axios
     return Promise.all([
         import('axios-mock-adapter'),
-        import('axios'),
+        import('@/api'), // 导入我们的API模块，获取实际使用的axios实例
         import('./data')
-    ]).then(([MockAdapterModule, axiosModule, mockDataModule]) => {
+    ]).then(([MockAdapterModule, apiModule, mockDataModule]) => {
         const MockAdapter = MockAdapterModule.default
-        const axios = axiosModule.default
+        // 使用API模块导出的axios实例
+        const apiInstance = apiModule.axios || apiModule.default
+
+        console.log('🔗 Mock将绑定到API实例:', apiInstance.defaults.baseURL)
 
         // 设置Mock适配器
-        setupMockRoutes(axios, MockAdapter, mockDataModule)
+        setupMockRoutes(apiInstance, MockAdapter, mockDataModule)
 
+        isInitialized = true
         console.log('✅ Mock环境初始化完成')
         return true
     }).catch(error => {
         console.error('❌ Mock适配器加载失败:', error)
+        console.error('Error details:', error.message, error.stack)
         throw error
     })
 }
 
-function setupMockRoutes(axios, MockAdapter, mockData) {
+function setupMockRoutes(axiosInstance, MockAdapter, mockData) {
     console.log('🔧 开始设置Mock路由...')
+    console.log('🔗 绑定Mock到axios实例:', axiosInstance.defaults)
 
     const {
         mockDashboardData,
@@ -51,20 +65,30 @@ function setupMockRoutes(axios, MockAdapter, mockData) {
         generateMockTrafficData
     } = mockData
 
-    // 创建Mock适配器实例
-    mock = new MockAdapter(axios, {
+    // 销毁旧的mock实例（如果存在）
+    if (mock) {
+        console.log('🧹 清理旧的Mock实例')
+        mock.restore()
+    }
+
+    // 关键修复：绑定到正确的axios实例
+    mock = new MockAdapter(axiosInstance, {
         delayResponse: 300,
-        onNoMatch: 'passthrough' // 未匹配的请求会正常发送
+        onNoMatch: 'throwException' // 改为抛出异常便于调试
     })
 
     console.log('📝 设置认证相关接口...')
 
     // 认证相关接口
     mock.onPost('/api/auth/login').reply((config) => {
-        console.log('🔐 Mock: 处理登录请求', config.data)
+        console.log('🔐 Mock: 处理登录请求')
+        console.log('🔐 Mock: 请求数据:', config.data)
 
         try {
-            const { username, password } = JSON.parse(config.data)
+            const requestData = typeof config.data === 'string' ? JSON.parse(config.data) : config.data
+            const { username, password } = requestData
+
+            console.log('🔐 Mock: 解析的认证信息:', { username, password: '***' })
 
             if (username === 'admin' && password === 'admin123') {
                 console.log('✅ Mock: 登录成功')
@@ -207,6 +231,22 @@ function setupMockRoutes(axios, MockAdapter, mockData) {
     console.log('  - POST /api/scan/*')
     console.log('  - GET  /api/attacks/logs')
     console.log('  - GET  /api/traffic/*')
+
+    console.log('🔍 Mock实例详情:', {
+        adapter: mock.adapter,
+        instance: axiosInstance.defaults.baseURL,
+        interceptors: axiosInstance.interceptors.request.handlers.length + axiosInstance.interceptors.response.handlers.length
+    })
+}
+
+// 导出用于清理
+export function destroyMock() {
+    if (mock) {
+        mock.restore()
+        mock = null
+        isInitialized = false
+        console.log('🧹 Mock已清理')
+    }
 }
 
 export { mock }

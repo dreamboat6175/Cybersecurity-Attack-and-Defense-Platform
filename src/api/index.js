@@ -1,15 +1,45 @@
-// API 配置和拦截器
+// src/api/index.js - 修复版本，确保正确导出axios实例
 import axios from 'axios'
 import { DEFAULT_CONFIG } from '@/utils/constants'
 
 // 创建 axios 实例
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL,
-    timeout: DEFAULT_CONFIG.API_TIMEOUT,
+    baseURL: import.meta.env.VITE_API_BASE_URL || '',
+    timeout: DEFAULT_CONFIG?.API_TIMEOUT || 30000,
     headers: {
         'Content-Type': 'application/json',
     }
 })
+
+// 重试配置
+const MAX_RETRY_ATTEMPTS = 3
+const RETRY_DELAY = 1000
+
+// 重试函数
+async function retryRequest(config, attempt = 1) {
+    try {
+        const response = await api(config)
+        return response
+    } catch (error) {
+        if (attempt < MAX_RETRY_ATTEMPTS && shouldRetry(error)) {
+            console.log(`🔄 API请求失败，${MAX_RETRY_ATTEMPTS - attempt}次重试机会剩余`)
+            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * attempt))
+            return retryRequest(config, attempt + 1)
+        }
+        throw error
+    }
+}
+
+// 判断是否应该重试
+function shouldRetry(error) {
+    // 不重试的情况：认证错误、客户端错误（4xx除404外）
+    if (error.response) {
+        const status = error.response.status
+        return status >= 500 || status === 404 // 只重试服务器错误和404
+    }
+    // 网络错误或超时，可以重试
+    return error.code === 'ECONNABORTED' || error.code === 'NETWORK_ERROR' || !error.response
+}
 
 // 请求拦截器
 api.interceptors.request.use(
@@ -78,7 +108,9 @@ api.interceptors.response.use(
                 case 401:
                     // 未授权，清除token并跳转登录
                     localStorage.removeItem('auth_token')
-                    window.location.href = '/login'
+                    if (window.location.pathname !== '/login') {
+                        window.location.href = '/login'
+                    }
                     break
 
                 case 403:
@@ -98,62 +130,22 @@ api.interceptors.response.use(
             throw new Error('网络连接错误，请检查网络状态')
         } else {
             // 其他错误
-            throw new Error(error.message || '未知错误')
+            throw new Error(error.message || '请求处理错误')
         }
+
+        return Promise.reject(error)
     }
 )
 
-// 重试机制
-const retryRequest = async (requestFn, retries = DEFAULT_CONFIG.API_RETRY_TIMES) => {
-    try {
-        return await requestFn()
-    } catch (error) {
-        if (retries > 0 && shouldRetry(error)) {
-            console.warn(`🔄 API请求失败，${retries}次重试机会剩余`)
-            await sleep(1000) // 等待1秒后重试
-            return retryRequest(requestFn, retries - 1)
-        }
-        throw error
-    }
+// 导出带重试功能的请求方法
+const request = {
+    get: (url, config) => retryRequest({ ...config, method: 'get', url }),
+    post: (url, data, config) => retryRequest({ ...config, method: 'post', url, data }),
+    put: (url, data, config) => retryRequest({ ...config, method: 'put', url, data }),
+    delete: (url, config) => retryRequest({ ...config, method: 'delete', url }),
+    patch: (url, data, config) => retryRequest({ ...config, method: 'patch', url, data })
 }
 
-// 判断是否应该重试
-const shouldRetry = (error) => {
-    // 网络错误或5xx服务器错误才重试
-    return !error.response || (error.response.status >= 500)
-}
-
-// 工具函数：等待
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
-
-// 请求方法封装
-export const request = {
-    // GET 请求
-    get: (url, params = {}, config = {}) => {
-        return retryRequest(() => api.get(url, { params, ...config }))
-    },
-
-    // POST 请求
-    post: (url, data = {}, config = {}) => {
-        return retryRequest(() => api.post(url, data, config))
-    },
-
-    // PUT 请求
-    put: (url, data = {}, config = {}) => {
-        return retryRequest(() => api.put(url, data, config))
-    },
-
-    // DELETE 请求
-    delete: (url, config = {}) => {
-        return retryRequest(() => api.delete(url, config))
-    },
-
-    // PATCH 请求
-    patch: (url, data = {}, config = {}) => {
-        return retryRequest(() => api.patch(url, data, config))
-    }
-}
-
-// 导出 axios 实例（用于特殊需求）
-export { api }
-export default request
+// 关键修复：确保正确导出axios实例供Mock使用
+export { api as axios }  // 导出axios实例供Mock绑定
+export default request   // 导出请求方法供应用使用
