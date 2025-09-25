@@ -31,15 +31,26 @@ if (import.meta.env.DEV) {
     console.log('API地址:', import.meta.env.VITE_API_BASE_URL)
     console.log('WebSocket地址:', import.meta.env.VITE_WS_URL)
     console.log('Mock模式:', import.meta.env.VITE_USE_MOCK)
+    console.log('环境变量检查:', {
+        VITE_USE_MOCK: import.meta.env.VITE_USE_MOCK,
+        VITE_USE_MOCK_TYPE: typeof import.meta.env.VITE_USE_MOCK,
+        DEV: import.meta.env.DEV
+    })
 
-    // 立即初始化Mock环境，不要延迟
-    if (import.meta.env.VITE_USE_MOCK === 'true') {
-        console.log('正在初始化Mock环境...')
+    // 修复Mock初始化逻辑
+    const shouldUseMock = import.meta.env.VITE_USE_MOCK === 'true' ||
+        import.meta.env.VITE_USE_MOCK === true
+
+    if (shouldUseMock) {
+        console.log('🔧 正在初始化Mock环境...')
+        // 使用动态导入但要等待完成
         import('@/mock').then(({ initializeMock }) => {
             initializeMock()
         }).catch(error => {
-            console.warn('Mock 初始化失败:', error)
+            console.warn('❌ Mock 初始化失败:', error)
         })
+    } else {
+        console.log('⚠️ Mock模式未启用')
     }
 
     // 全局调试方法
