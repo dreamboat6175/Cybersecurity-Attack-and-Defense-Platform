@@ -1,4 +1,4 @@
-// vite.config.js
+// vite.config.js - 修复版本
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
@@ -21,19 +21,23 @@ export default defineConfig({
 
     server: {
         port: 3000,
-        host: true,
-        proxy: {
-            '/api': {
-                target: 'http://localhost:8080',
-                changeOrigin: true,
-                secure: false
-            },
-            '/ws': {
-                target: 'ws://localhost:8080',
-                ws: true,
-                changeOrigin: true
-            }
-        }
+        host: 'localhost', // 明确指定localhost，而不是true
+        open: false, // 暂时不自动打开浏览器
+        cors: true,
+        strictPort: false, // 如果端口被占用，尝试下一个
+        // 暂时注释掉代理配置，因为没有后端服务器
+        // proxy: {
+        //     '/api': {
+        //         target: 'http://localhost:8080',
+        //         changeOrigin: true,
+        //         secure: false
+        //     },
+        //     '/ws': {
+        //         target: 'ws://localhost:8080',
+        //         ws: true,
+        //         changeOrigin: true
+        //     }
+        // }
     },
 
     build: {
