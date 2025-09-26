@@ -101,7 +101,7 @@ export const useDashboardStore = defineStore('dashboard', {
          */
         async loadTargets() {
             try {
-                const response = await api.get('/api/targets')
+                const response = await api.get('targets')
                 this.targets = response.data || []
 
                 // 如果没有选中目标，选择第一个

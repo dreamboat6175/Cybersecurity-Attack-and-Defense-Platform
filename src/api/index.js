@@ -6,7 +6,7 @@ import axios from 'axios'
 // ======================
 
 const API_CONFIG = {
-    BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api',
+    BASE_URL: import.meta.env.VITE_API_BASE_URL || 'api',
     TIMEOUT: 10000,
     RETRY_COUNT: 3,
     RETRY_DELAY: 1000
