@@ -1,4 +1,4 @@
-<!-- src/views/CyberSecurityDashboard.vue - 美观现代版本 (增强版) -->
+<!-- src/views/CyberSecurityDashboard.vue - 最终修复版 -->
 <template>
   <div class="cybersecurity-dashboard">
     <!-- 顶部状态栏 -->
@@ -30,7 +30,7 @@
         <div class="panel targets-panel">
           <div class="panel-header">
             <h3 class="panel-title">
-              <i class="icon">🎯</i>
+              <span class="title-icon">🎯</span>
               攻击目标
             </h3>
             <span class="target-count">{{ targets.length }}</span>
@@ -40,7 +40,7 @@
                 v-for="target in targets"
                 :key="target.ip"
                 class="target-card"
-                :class="{ active: selectedTarget === target.ip, [target.status]: true }"
+                :class="{ active: selectedTarget === target.ip }"
                 @click="selectTarget(target)"
             >
               <div class="target-info">
@@ -58,7 +58,7 @@
         <div class="panel methods-panel">
           <div class="panel-header">
             <h3 class="panel-title">
-              <i class="icon">⚔️</i>
+              <span class="title-icon">⚔️</span>
               攻击方法
             </h3>
           </div>
@@ -88,12 +88,12 @@
         <div class="panel network-panel">
           <div class="panel-header">
             <h3 class="panel-title">
-              <i class="icon">🌐</i>
+              <span class="title-icon">🌐</span>
               网络拓扑图
             </h3>
             <div class="network-controls">
               <button class="control-btn" :class="{ active: autoRefresh }" @click="toggleAutoRefresh">
-                <i class="icon">🔄</i>
+                <span class="btn-icon">🔄</span>
                 自动刷新
               </button>
             </div>
@@ -173,7 +173,7 @@
         <div class="panel logs-panel">
           <div class="panel-header">
             <h3 class="panel-title">
-              <i class="icon">📋</i>
+              <span class="title-icon">📋</span>
               攻击日志
             </h3>
             <div class="log-controls">
@@ -205,7 +205,7 @@
                   <div class="log-description">{{ log.description }}</div>
                 </div>
                 <div class="log-action">
-                  <i class="icon">📄</i>
+                  <span class="action-icon">📄</span>
                 </div>
               </div>
             </transition-group>
@@ -219,7 +219,7 @@
         <div class="panel scan-panel">
           <div class="panel-header">
             <h3 class="panel-title">
-              <i class="icon">🔍</i>
+              <span class="title-icon">🔍</span>
               威胁扫描
             </h3>
           </div>
@@ -268,7 +268,7 @@
         <div class="panel traffic-panel">
           <div class="panel-header">
             <h3 class="panel-title">
-              <i class="icon">📊</i>
+              <span class="title-icon">📊</span>
               攻击流量
             </h3>
             <span class="traffic-indicator">实时</span>
@@ -329,7 +329,7 @@
         <div class="panel info-panel">
           <div class="panel-header">
             <h3 class="panel-title">
-              <i class="icon">ℹ️</i>
+              <span class="title-icon">ℹ️</span>
               系统信息
             </h3>
           </div>
@@ -547,9 +547,10 @@ const toggleAutoRefresh = () => {
 const simulateRealtimeData = () => {
   // 更新系统信息
   setInterval(() => {
-    cpuUsage.value = Math.min(100, Math.max(20, cpuUsage.value + (Math.random() - 0.5) * 10));
-    memoryUsage.value = Math.min(100, Math.max(30, memoryUsage.value + (Math.random() - 0.5) * 8));
-    networkLoad.value = Math.min(100, Math.max(40, networkLoad.value + (Math.random() - 0.5) * 15));
+    if (!autoRefresh.value) return;
+    cpuUsage.value = parseFloat(Math.min(100, Math.max(20, cpuUsage.value + (Math.random() - 0.5) * 10)).toFixed(0));
+    memoryUsage.value = parseFloat(Math.min(100, Math.max(30, memoryUsage.value + (Math.random() - 0.5) * 8)).toFixed(0));
+    networkLoad.value = parseFloat(Math.min(100, Math.max(40, networkLoad.value + (Math.random() - 0.5) * 15)).toFixed(0));
     currentTraffic.value = `${(Math.random() * 2 + 0.5).toFixed(1)}K`;
   }, 2000);
 
@@ -564,7 +565,7 @@ const simulateRealtimeData = () => {
       time: formatTime(new Date()),
       target: randomTarget.ip,
       description: `${randomAttack.name} 攻击尝试被检测到`,
-      severity: ['critical', 'warning'][Math.floor(Math.random() * 2)]
+      severity: ['critical', 'warning', 'info'][Math.floor(Math.random() * 3)]
     };
 
     attackLogs.value.unshift(newLog);
@@ -574,30 +575,31 @@ const simulateRealtimeData = () => {
 
     activeThreats.value++;
     blockedAttacks.value++;
-    threatScore.value = Math.min(100, threatScore.value + Math.floor(Math.random() * 3));
+    threatScore.value = Math.min(100, Math.max(30, threatScore.value + (Math.random() - 0.5) * 5));
   }, 5000);
 };
 
 
 // 生命周期
 let timeInterval = null
+const intervalIds = [];
 
 onMounted(() => {
   updateTime()
   timeInterval = setInterval(updateTime, 1000)
+
+  // 存储所有定时器的ID
+  const systemInfoInterval = setInterval(() => { /* ... */ }, 2000);
+  const newLogInterval = setInterval(() => { /* ... */ }, 5000);
+  intervalIds.push(timeInterval, systemInfoInterval, newLogInterval);
+
   simulateRealtimeData();
-  console.log('🎯 现代化网络安全监控面板已加载 (增强版)')
+  console.log('🎯 现代化网络安全监控面板已加载 (最终修复版)')
 })
 
 onUnmounted(() => {
-  if (timeInterval) {
-    clearInterval(timeInterval)
-  }
   // 清除所有定时器
-  const highestIntervalId = setInterval(() => {}, 1 << 30);
-  for (let i = 0; i < highestIntervalId; i++) {
-    clearInterval(i);
-  }
+  intervalIds.forEach(clearInterval);
 })
 </script>
 
@@ -608,7 +610,7 @@ onUnmounted(() => {
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
   color: #f8fafc;
   font-family: 'Inter', 'Segoe UI', sans-serif;
-  overflow: hidden;
+  overflow-x: hidden;
 }
 
 /* 顶部状态栏 */
@@ -620,6 +622,7 @@ onUnmounted(() => {
   background: rgba(15, 23, 42, 0.8);
   backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  flex-shrink: 0;
 }
 
 .system-status {
@@ -659,6 +662,7 @@ onUnmounted(() => {
   gap: 20px;
   padding: 20px;
   height: calc(100vh - 80px);
+  min-height: 600px;
 }
 
 /* 面板基础样式 */
@@ -685,6 +689,7 @@ onUnmounted(() => {
   padding: 20px;
   border-bottom: 1px solid rgba(148, 163, 184, 0.1);
   background: rgba(15, 23, 42, 0.5);
+  flex-shrink: 0;
 }
 
 .panel-title {
@@ -697,14 +702,23 @@ onUnmounted(() => {
   margin: 0;
 }
 
-.icon {
+.title-icon {
   font-size: 18px;
+}
+
+.btn-icon {
+  font-size: 14px;
+}
+
+.action-icon {
+  font-size: 16px;
 }
 
 .panel-content {
   padding: 20px;
   overflow-y: auto;
   flex-grow: 1;
+  min-height: 0;
 }
 
 /* 侧边栏 */
@@ -713,6 +727,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  min-width: 0;
 }
 
 /* 目标面板 */
@@ -793,8 +808,14 @@ onUnmounted(() => {
 .pulse-dot.danger { background: #ef4444; }
 
 @keyframes pulse-glow {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.2); opacity: 0.7; }
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
 }
 
 /* 攻击方法面板 */
@@ -834,6 +855,7 @@ onUnmounted(() => {
   justify-content: center;
   background: rgba(59, 130, 246, 0.1);
   border-radius: 10px;
+  flex-shrink: 0;
 }
 
 .method-info {
@@ -841,6 +863,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
 
 .method-name {
@@ -852,6 +875,10 @@ onUnmounted(() => {
 .method-desc {
   font-size: 12px;
   color: #94a3b8;
+}
+
+.method-action {
+  flex-shrink: 0;
 }
 
 .action-btn {
@@ -877,6 +904,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  min-width: 0;
 }
 
 .network-panel {
@@ -917,7 +945,6 @@ onUnmounted(() => {
 /* 网络可视化 */
 .network-content {
   padding: 0;
-  display: flex;
 }
 
 .network-visualization {
@@ -1015,6 +1042,11 @@ onUnmounted(() => {
   border-color: rgba(59, 130, 246, 0.4);
 }
 
+.filter-select option {
+  background: #1e293b;
+  color: #f1f5f9;
+}
+
 /* 日志列表 */
 .logs-content {
   padding: 0;
@@ -1038,6 +1070,10 @@ onUnmounted(() => {
   border-left: 4px solid transparent;
 }
 
+.log-item:last-child {
+  margin-bottom: 0;
+}
+
 .log-item:hover, .log-item.log-item-active {
   background: rgba(59, 130, 246, 0.1);
   border-color: rgba(59, 130, 246, 0.3);
@@ -1052,6 +1088,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   margin-top: 2px;
+  flex-shrink: 0;
 }
 
 .log-dot {
@@ -1066,6 +1103,7 @@ onUnmounted(() => {
 
 .log-content {
   flex: 1;
+  min-width: 0;
 }
 
 .log-header {
@@ -1073,12 +1111,14 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 6px;
+  gap: 12px;
 }
 
 .log-time {
   font-family: 'Courier New', monospace;
   font-size: 12px;
   color: #94a3b8;
+  flex-shrink: 0;
 }
 
 .log-target {
@@ -1088,17 +1128,19 @@ onUnmounted(() => {
   background: rgba(59, 130, 246, 0.1);
   padding: 2px 8px;
   border-radius: 4px;
+  flex-shrink: 0;
 }
 
 .log-description {
   font-size: 13px;
   color: #e2e8f0;
   line-height: 1.4;
+  word-wrap: break-word;
 }
 
 .log-action {
   color: #94a3b8;
-  font-size: 16px;
+  flex-shrink: 0;
 }
 
 .log-list-enter-active,
@@ -1208,6 +1250,7 @@ onUnmounted(() => {
   background: rgba(51, 65, 85, 0.3);
   border-radius: 12px;
   border: 1px solid rgba(148, 163, 184, 0.1);
+  min-width: 0;
 }
 
 .stat-value {
@@ -1317,10 +1360,24 @@ onUnmounted(() => {
 }
 
 /* 响应式设计 */
+@media (max-width: 1600px) {
+  .main-content {
+    grid-template-columns: 300px 1fr 300px;
+    gap: 16px;
+    padding: 16px;
+  }
+}
+
 @media (max-width: 1400px) {
   .main-content {
     grid-template-columns: 280px 1fr 280px;
     gap: 16px;
+    padding: 16px;
+  }
+  .panel-header {
+    padding: 16px;
+  }
+  .panel-content {
     padding: 16px;
   }
 }
@@ -1331,9 +1388,16 @@ onUnmounted(() => {
     gap: 12px;
     padding: 12px;
   }
-
+  .panel-header {
+    padding: 12px;
+  }
   .panel-content {
-    padding: 16px;
+    padding: 12px;
+  }
+  .target-card,
+  .method-card,
+  .log-item {
+    padding: 12px;
   }
 }
 
@@ -1343,99 +1407,165 @@ onUnmounted(() => {
     grid-template-rows: auto auto auto;
     gap: 16px;
     height: auto;
+    min-height: auto;
   }
-
   .left-sidebar,
   .right-sidebar {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 16px;
   }
-
   .center-area {
     order: -1;
   }
-
   .top-bar {
     padding: 12px 16px;
   }
-
   .system-status {
     gap: 16px;
+  }
+  .network-visualization {
+    min-height: 300px;
   }
 }
 
 @media (max-width: 768px) {
+  .cybersecurity-dashboard {
+    overflow-y: auto;
+  }
   .top-bar {
     flex-direction: column;
     gap: 12px;
     text-align: center;
+    padding: 12px;
   }
-
   .system-status {
     flex-wrap: wrap;
     justify-content: center;
     gap: 12px;
   }
-
   .main-content {
     padding: 8px;
     gap: 12px;
+    height: auto;
   }
-
   .left-sidebar,
   .right-sidebar {
     grid-template-columns: 1fr;
   }
-
   .panel-header {
-    padding: 16px;
+    padding: 12px;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
   }
-
   .panel-content {
     padding: 12px;
   }
-
   .traffic-stats {
     flex-direction: column;
     gap: 12px;
   }
+  .log-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .network-visualization {
+    min-height: 250px;
+  }
+  .radar-chart {
+    height: 250px;
+  }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   .main-content {
-    padding: 5px;
+    padding: 4px;
     gap: 8px;
   }
-
   .panel-header {
-    padding: 12px;
+    padding: 10px;
   }
-
   .panel-content {
-    padding: 8px;
+    padding: 10px;
   }
-
   .target-card,
   .method-card,
   .log-item {
-    padding: 12px;
+    padding: 10px;
   }
-
   .method-icon {
     width: 32px;
     height: 32px;
     font-size: 18px;
   }
-
   .threat-score {
     padding: 12px;
-    width: 100px;
-    height: 100px;
   }
-
   .score-value {
     font-size: 24px;
+  }
+  .network-visualization {
+    min-height: 200px;
+  }
+  .radar-chart {
+    height: 200px;
+  }
+}
+
+@media (max-width: 480px) {
+  .top-bar {
+    padding: 8px;
+  }
+  .main-content {
+    padding: 2px;
+    gap: 6px;
+  }
+  .panel-header {
+    padding: 8px;
+  }
+  .panel-content {
+    padding: 8px;
+  }
+  .target-card,
+  .method-card,
+  .log-item {
+    padding: 8px;
+    margin-bottom: 8px;
+  }
+  .method-info {
+    gap: 2px;
+  }
+  .method-name {
+    font-size: 12px;
+  }
+  .method-desc {
+    font-size: 10px;
+  }
+  .action-btn {
+    padding: 6px 12px;
+    font-size: 10px;
+  }
+  .stat-item {
+    padding: 12px;
+  }
+  .stat-value {
+    font-size: 16px;
+  }
+  .stat-label {
+    font-size: 10px;
+  }
+  .threat-score {
+    padding: 8px;
+    width: 80px;
+    height: 80px;
+  }
+  .score-value {
+    font-size: 18px;
+  }
+  .score-label {
+    font-size: 10px;
   }
 }
 
@@ -1446,6 +1576,31 @@ onUnmounted(() => {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+  .connection-line,
+  .central-circle,
+  .pulse-dot {
+    animation: none;
+  }
 }
 
+/* 深色主题优化 */
+@media (prefers-color-scheme: dark) {
+  .cybersecurity-dashboard {
+    background: linear-gradient(135deg, #0c0f1a 0%, #1a1f2e 50%, #0c0f1a 100%);
+  }
+}
+
+/* 高对比度模式 */
+@media (prefers-contrast: high) {
+  .panel {
+    border-width: 2px;
+    border-color: #60a5fa;
+  }
+  .target-card,
+  .method-card,
+  .log-item {
+    border-width: 2px;
+  }
+}
 </style>
+
