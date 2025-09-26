@@ -1,10 +1,11 @@
-// API请求封装
+// src/api/index.js
+// API请求封装 - 修复axios重复声明问题
 // 网络安全攻防平台 - 统一API请求管理
 
 import axios from 'axios'
 import { API_CONFIG, ERROR_CODES, ERROR_MESSAGES, STORAGE_KEYS } from '@/utils/constants'
 
-// 创建axios实例
+// 创建唯一的axios实例
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL || API_CONFIG.BASE_URL,
     timeout: API_CONFIG.TIMEOUT,
@@ -211,6 +212,20 @@ function handleApiError(error) {
 }
 
 /**
+ * 判断是否应该重试请求
+ * @param {Error} error - 错误对象
+ * @returns {boolean} 是否应该重试
+ */
+function shouldRetry(error) {
+    // 网络错误可以重试
+    if (!error.response) return true
+
+    const { status } = error.response
+    // 服务器错误（5xx）可以重试
+    return status >= 500
+}
+
+/**
  * 重试请求
  * @param {Function} requestFn - 请求函数
  * @param {number} retries - 重试次数
@@ -231,68 +246,6 @@ export async function retryRequest(requestFn, retries = API_CONFIG.RETRY_COUNT, 
 }
 
 /**
- * 判断是否应该重试请求
- * @param {Error} error - 错误对象
- * @returns {boolean} 是否应该重试
- */
-function shouldRetry(error) {
-    // 网络错误可以重试
-    if (!error.response) return true
-
-    const { status } = error.response
-    // 服务器错误（5xx）可以重试
-    return status >= 500
-}
-
-/**
- * 批量请求
- * @param {Array} requests - 请求数组
- * @param {Object} options - 选项
- * @returns {Promise} 批量请求结果
- */
-export async function batchRequest(requests, options = {}) {
-    const {
-        concurrent = 5, // 并发数
-        failFast = false // 是否快速失败
-    } = options
-
-    const results = []
-    const errors = []
-
-    // 分批处理请求
-    for (let i = 0; i < requests.length; i += concurrent) {
-        const batch = requests.slice(i, i + concurrent)
-
-        try {
-            if (failFast) {
-                // 快速失败模式：一个失败就全部失败
-                const batchResults = await Promise.all(batch.map(req => req()))
-                results.push(...batchResults)
-            } else {
-                // 容错模式：收集所有结果和错误
-                const batchResults = await Promise.allSettled(batch.map(req => req()))
-                batchResults.forEach((result, index) => {
-                    if (result.status === 'fulfilled') {
-                        results[i + index] = result.value
-                    } else {
-                        errors[i + index] = result.reason
-                    }
-                })
-            }
-        } catch (error) {
-            if (failFast) {
-                throw error
-            } else {
-                // 在容错模式下记录批次错误
-                console.error('批量请求批次失败:', error)
-            }
-        }
-    }
-
-    return { results, errors }
-}
-
-/**
  * 创建取消令牌
  * @returns {Object} 取消令牌对象
  */
@@ -305,68 +258,23 @@ export function createCancelToken() {
  * @param {Error} error - 错误对象
  * @returns {boolean} 是否为取消错误
  */
-export function isCancel(error) {
+export function isCancelError(error) {
     return axios.isCancel(error)
 }
 
-/**
- * 上传文件
- * @param {string} url - 上传URL
- * @param {FormData} formData - 表单数据
- * @param {Function} onProgress - 进度回调
- * @returns {Promise} 上传结果
- */
-export async function uploadFile(url, formData, onProgress) {
-    return api.post(url, formData, {
-        headers: {
-            'Content-Type': 'multipart/form-data'
-        },
-        onUploadProgress: (progressEvent) => {
-            if (onProgress) {
-                const percentCompleted = Math.round(
-                    (progressEvent.loaded * 100) / progressEvent.total
-                )
-                onProgress(percentCompleted)
-            }
-        }
-    })
-}
-
-/**
- * 下载文件
- * @param {string} url - 下载URL
- * @param {string} filename - 文件名
- * @param {Function} onProgress - 进度回调
- * @returns {Promise} 下载结果
- */
-export async function downloadFile(url, filename, onProgress) {
-    const response = await api.get(url, {
-        responseType: 'blob',
-        onDownloadProgress: (progressEvent) => {
-            if (onProgress) {
-                const percentCompleted = Math.round(
-                    (progressEvent.loaded * 100) / progressEvent.total
-                )
-                onProgress(percentCompleted)
-            }
-        }
-    })
-
-    // 创建下载链接
-    const downloadUrl = window.URL.createObjectURL(new Blob([response]))
-    const link = document.createElement('a')
-    link.href = downloadUrl
-    link.setAttribute('download', filename)
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    window.URL.revokeObjectURL(downloadUrl)
-
-    return response
+// 封装常用的请求方法
+export const request = {
+    get: (url, config = {}) => api.get(url, config),
+    post: (url, data = {}, config = {}) => api.post(url, data, config),
+    put: (url, data = {}, config = {}) => api.put(url, data, config),
+    patch: (url, data = {}, config = {}) => api.patch(url, data, config),
+    delete: (url, config = {}) => api.delete(url, config),
+    head: (url, config = {}) => api.head(url, config),
+    options: (url, config = {}) => api.options(url, config)
 }
 
 // 导出axios实例供Mock使用
-export const axios = api
+export { api as axios }
 
-// 导出axios实例作为默认导出
-export default api
+// 默认导出request对象
+export default request

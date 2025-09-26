@@ -1,83 +1,116 @@
+<!-- src/views/Login.vue - 添加界面选择 -->
 <template>
   <div class="login-container">
+    <!-- 背景动画 -->
     <div class="login-background">
-      <!-- 背景动画效果 -->
       <div class="bg-animation">
         <div v-for="i in 20" :key="i" class="bg-particle"></div>
       </div>
     </div>
 
-    <div class="login-content">
-      <!-- Logo和标题 -->
+    <!-- 登录表单 -->
+    <div class="login-card">
       <div class="login-header">
         <div class="logo">
           <span class="logo-icon">🛡️</span>
-          <span class="logo-text">CyberSec</span>
+          <span class="logo-text">网络安全攻防平台</span>
         </div>
-        <h1 class="login-title">网络安全攻防平台</h1>
-        <p class="login-subtitle">保护您的数字世界</p>
+        <p class="login-subtitle">Security Operation Center</p>
       </div>
 
-      <!-- 登录表单 -->
       <form @submit.prevent="handleLogin" class="login-form">
+        <!-- 用户名输入 -->
         <div class="form-group">
-          <div class="input-wrapper">
-            <span class="input-icon">👤</span>
-            <input
-                v-model="loginForm.username"
-                type="text"
-                placeholder="用户名"
-                class="form-input"
-                :class="{ error: errors.username }"
-                required
-            >
-          </div>
-          <div v-if="errors.username" class="error-message">
-            {{ errors.username }}
-          </div>
+          <label class="form-label">用户名</label>
+          <input
+              v-model="loginForm.username"
+              type="text"
+              class="form-input"
+              :class="{ error: errors.username }"
+              placeholder="请输入用户名"
+              required
+          />
+          <div v-if="errors.username" class="error-message">{{ errors.username }}</div>
         </div>
 
+        <!-- 密码输入 -->
         <div class="form-group">
-          <div class="input-wrapper">
-            <span class="input-icon">🔒</span>
+          <label class="form-label">密码</label>
+          <div class="password-wrapper">
             <input
                 v-model="loginForm.password"
                 :type="showPassword ? 'text' : 'password'"
-                placeholder="密码"
                 class="form-input"
                 :class="{ error: errors.password }"
+                placeholder="请输入密码"
                 required
-            >
+            />
             <button
                 type="button"
-                class="toggle-password"
+                class="password-toggle"
                 @click="showPassword = !showPassword"
             >
               {{ showPassword ? '🙈' : '👁️' }}
             </button>
           </div>
-          <div v-if="errors.password" class="error-message">
-            {{ errors.password }}
+          <div v-if="errors.password" class="error-message">{{ errors.password }}</div>
+        </div>
+
+        <!-- 界面选择 -->
+        <div class="form-group">
+          <label class="form-label">选择界面</label>
+          <div class="dashboard-options">
+            <label class="radio-option">
+              <input
+                  v-model="selectedDashboard"
+                  type="radio"
+                  value="cybersec"
+              />
+              <span class="radio-label">
+                <span class="radio-icon">⚡</span>
+                <span class="radio-text">网络安全监控面板</span>
+                <span class="radio-desc">专业安全监控界面</span>
+              </span>
+            </label>
+            <label class="radio-option">
+              <input
+                  v-model="selectedDashboard"
+                  type="radio"
+                  value="dashboard"
+              />
+              <span class="radio-label">
+                <span class="radio-icon">📊</span>
+                <span class="radio-text">标准仪表盘</span>
+                <span class="radio-desc">基础数据展示界面</span>
+              </span>
+            </label>
           </div>
         </div>
 
-        <div class="form-options">
+        <!-- 记住登录 -->
+        <div class="form-group">
           <label class="checkbox-wrapper">
-            <input v-model="loginForm.remember" type="checkbox">
-            <span class="checkmark"></span>
-            记住我
+            <input
+                v-model="loginForm.remember"
+                type="checkbox"
+                class="form-checkbox"
+            />
+            <span class="checkbox-label">记住登录状态</span>
           </label>
-          <a href="#" class="forgot-link">忘记密码？</a>
         </div>
 
+        <!-- 登录按钮 -->
         <button
             type="submit"
-            class="login-btn"
+            class="login-button"
             :disabled="isLoading"
             :class="{ loading: isLoading }"
         >
-          <span v-if="isLoading" class="loading-spinner"></span>
-          {{ isLoading ? '登录中...' : '登录' }}
+          <span v-if="!isLoading" class="btn-text">登录</span>
+          <span v-else class="btn-text">
+            <span class="loading-spinner">🔄</span>
+            登录中...
+          </span>
         </button>
 
         <!-- 错误提示 -->
@@ -99,13 +132,6 @@
             >
               管理员: admin / admin123
             </button>
-            <button
-                type="button"
-                class="demo-account"
-                @click="fillDemoAccount('user')"
-            >
-              用户: user / user123
-            </button>
           </div>
         </div>
       </form>
@@ -123,6 +149,7 @@ const authStore = useAuthStore()
 
 // 响应式数据
 const showPassword = ref(false)
+const selectedDashboard = ref('cybersec') // 默认选择网络安全监控面板
 const loginForm = reactive({
   username: '',
   password: '',
@@ -176,8 +203,14 @@ const handleLogin = async () => {
     })
 
     if (result.success) {
-      console.log('✅ 登录成功')
-      router.push('/dashboard')
+      console.log('✅ 登录成功，跳转到:', selectedDashboard.value)
+
+      // 根据选择的界面跳转
+      if (selectedDashboard.value === 'cybersec') {
+        router.push('/cybersec')
+      } else {
+        router.push('/dashboard')
+      }
     }
   } catch (error) {
     console.error('❌ 登录失败:', error)
@@ -188,9 +221,6 @@ const fillDemoAccount = (type) => {
   if (type === 'admin') {
     loginForm.username = 'admin'
     loginForm.password = 'admin123'
-  } else if (type === 'user') {
-    loginForm.username = 'user'
-    loginForm.password = 'user123'
   }
 }
 
@@ -214,8 +244,9 @@ watch(() => loginForm.password, clearErrors)
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, var(--color-bg-primary) 0%, #1a2332 100%);
+  background: linear-gradient(135deg, #0a1520 0%, #1a2b42 100%);
   overflow: hidden;
+  padding: 20px;
 }
 
 /* 背景动画 */
@@ -238,7 +269,7 @@ watch(() => loginForm.password, clearErrors)
   position: absolute;
   width: 4px;
   height: 4px;
-  background: var(--color-text-accent);
+  background: #4080ff;
   border-radius: 50%;
   opacity: 0.1;
   animation: float 6s ease-in-out infinite;
@@ -265,7 +296,7 @@ watch(() => loginForm.password, clearErrors)
   }
 }
 
-/* 为每个粒子设置随机位置 */
+/* 设置粒子随机位置 */
 .bg-particle:nth-child(1) { top: 20%; left: 10%; }
 .bg-particle:nth-child(2) { top: 80%; left: 20%; }
 .bg-particle:nth-child(3) { top: 40%; left: 30%; }
@@ -276,311 +307,297 @@ watch(() => loginForm.password, clearErrors)
 .bg-particle:nth-child(8) { top: 10%; left: 80%; }
 .bg-particle:nth-child(9) { top: 50%; left: 90%; }
 .bg-particle:nth-child(10) { top: 25%; left: 15%; }
-.bg-particle:nth-child(11) { top: 75%; left: 25%; }
-.bg-particle:nth-child(12) { top: 35%; left: 35%; }
-.bg-particle:nth-child(13) { top: 65%; left: 45%; }
-.bg-particle:nth-child(14) { top: 15%; left: 55%; }
-.bg-particle:nth-child(15) { top: 85%; left: 65%; }
-.bg-particle:nth-child(16) { top: 45%; left: 75%; }
-.bg-particle:nth-child(17) { top: 55%; left: 85%; }
-.bg-particle:nth-child(18) { top: 95%; left: 95%; }
-.bg-particle:nth-child(19) { top: 5%; left: 5%; }
-.bg-particle:nth-child(20) { top: 85%; left: 15%; }
 
-/* 登录内容 */
-.login-content {
+/* 登录卡片 */
+.login-card {
   position: relative;
-  z-index: 10;
   width: 100%;
-  max-width: 400px;
-  padding: var(--spacing-xl);
-  background-color: rgba(17, 34, 64, 0.95);
-  border: 1px solid var(--color-border);
-  border-radius: var(--border-radius-lg);
+  max-width: 420px;
+  background: rgba(17, 34, 64, 0.95);
+  border: 1px solid rgba(64, 128, 255, 0.3);
+  border-radius: 16px;
+  padding: 40px;
   backdrop-filter: blur(20px);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
-/* 登录头部 */
 .login-header {
   text-align: center;
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: 40px;
 }
 
 .logo {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-md);
+  gap: 12px;
+  margin-bottom: 8px;
 }
 
 .logo-icon {
   font-size: 2.5rem;
-  filter: drop-shadow(0 0 10px rgba(100, 255, 218, 0.3));
 }
 
 .logo-text {
-  font-size: var(--font-size-2xl);
-  font-weight: 700;
-  color: var(--color-text-accent);
-  font-family: var(--font-family-mono);
-}
-
-.login-title {
-  font-size: var(--font-size-xl);
+  font-size: 1.5rem;
   font-weight: 600;
-  color: var(--color-text-primary);
-  margin-bottom: var(--spacing-sm);
+  color: #ffffff;
 }
 
 .login-subtitle {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  margin: 0;
+  color: #8899aa;
+  font-size: 0.9rem;
 }
 
 /* 表单样式 */
-.login-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-lg);
-}
-
 .form-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
+  margin-bottom: 24px;
 }
 
-.input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.input-icon {
-  position: absolute;
-  left: var(--spacing-md);
-  font-size: var(--font-size-base);
-  opacity: 0.7;
-  z-index: 1;
+.form-label {
+  display: block;
+  margin-bottom: 8px;
+  color: #ffffff;
+  font-weight: 500;
+  font-size: 0.9rem;
 }
 
 .form-input {
   width: 100%;
-  padding: var(--spacing-md) var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + 24px);
-  background-color: var(--color-bg-primary);
-  border: 2px solid var(--color-border);
-  border-radius: var(--border-radius-sm);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-base);
-  transition: all var(--transition-base);
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 1rem;
+  transition: all 0.3s ease;
 }
 
 .form-input:focus {
   outline: none;
-  border-color: var(--color-text-accent);
-  box-shadow: 0 0 0 3px rgba(100, 255, 218, 0.1);
+  border-color: #4080ff;
+  box-shadow: 0 0 0 3px rgba(64, 128, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .form-input.error {
-  border-color: var(--color-danger);
+  border-color: #ff4444;
 }
 
-.toggle-password {
+.password-wrapper {
+  position: relative;
+}
+
+.password-toggle {
   position: absolute;
-  right: var(--spacing-md);
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
   background: none;
   border: none;
+  color: #8899aa;
   cursor: pointer;
-  font-size: var(--font-size-base);
-  opacity: 0.7;
-  transition: opacity var(--transition-base);
+  font-size: 1rem;
+  padding: 4px;
+  transition: color 0.3s ease;
 }
 
-.toggle-password:hover {
-  opacity: 1;
+.password-toggle:hover {
+  color: #4080ff;
 }
 
-.error-message {
-  color: var(--color-danger);
-  font-size: var(--font-size-xs);
-  margin-top: var(--spacing-xs);
-}
-
-/* 表单选项 */
-.form-options {
+/* 界面选择 */
+.dashboard-options {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 12px;
 }
 
+.radio-option {
+  display: block;
+  cursor: pointer;
+}
+
+.radio-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.radio-option input[type="radio"]:checked + .radio-label {
+  background: rgba(64, 128, 255, 0.1);
+  border-color: #4080ff;
+}
+
+.radio-label:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.radio-icon {
+  font-size: 1.5rem;
+  min-width: 24px;
+}
+
+.radio-text {
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.radio-desc {
+  font-size: 0.8rem;
+  color: #8899aa;
+  margin-left: auto;
+}
+
+/* 复选框 */
 .checkbox-wrapper {
   display: flex;
   align-items: center;
+  gap: 8px;
   cursor: pointer;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
 }
 
-.checkbox-wrapper input {
-  display: none;
+.form-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: #4080ff;
 }
 
-.checkmark {
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--color-border);
-  border-radius: 3px;
-  margin-right: var(--spacing-sm);
-  position: relative;
-  transition: all var(--transition-base);
-}
-
-.checkbox-wrapper input:checked + .checkmark {
-  background-color: var(--color-text-accent);
-  border-color: var(--color-text-accent);
-}
-
-.checkbox-wrapper input:checked + .checkmark::after {
-  content: '✓';
-  position: absolute;
-  top: -2px;
-  left: 1px;
-  color: var(--color-bg-primary);
-  font-size: 12px;
-  font-weight: bold;
-}
-
-.forgot-link {
-  color: var(--color-text-accent);
-  font-size: var(--font-size-sm);
-  text-decoration: none;
-  transition: opacity var(--transition-base);
-}
-
-.forgot-link:hover {
-  opacity: 0.8;
+.checkbox-label {
+  color: #8899aa;
+  font-size: 0.9rem;
 }
 
 /* 登录按钮 */
-.login-btn {
+.login-button {
   width: 100%;
-  padding: var(--spacing-md);
-  background: linear-gradient(135deg, var(--color-text-accent), #4ECDC4);
-  color: var(--color-bg-primary);
+  padding: 14px;
+  background: linear-gradient(135deg, #4080ff, #6099ff);
   border: none;
-  border-radius: var(--border-radius-sm);
-  font-size: var(--font-size-base);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all var(--transition-base);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-sm);
+  transition: all 0.3s ease;
+  margin-bottom: 20px;
 }
 
-.login-btn:hover:not(:disabled) {
+.login-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #3066cc, #5088ee);
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(100, 255, 218, 0.3);
+  box-shadow: 0 8px 25px rgba(64, 128, 255, 0.3);
 }
 
-.login-btn:disabled {
-  opacity: 0.7;
+.login-button:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
   transform: none;
 }
 
-.login-btn.loading {
-  pointer-events: none;
-}
-
 .loading-spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid transparent;
-  border-top: 2px solid var(--color-bg-primary);
-  border-radius: 50%;
+  display: inline-block;
   animation: spin 1s linear infinite;
 }
 
-/* 错误提示 */
-.login-error {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-md);
-  background-color: rgba(244, 67, 54, 0.1);
-  border: 1px solid var(--color-danger);
-  border-radius: var(--border-radius-sm);
-  color: var(--color-danger);
-  font-size: var(--font-size-sm);
-}
-
-.error-icon {
-  flex-shrink: 0;
-}
-
-/* 演示信息 */
-.demo-info {
-  margin-top: var(--spacing-lg);
-  padding-top: var(--spacing-lg);
-  border-top: 1px solid var(--color-border);
-  text-align: center;
-}
-
-.demo-text {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  margin-bottom: var(--spacing-md);
-}
-
-.demo-accounts {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-}
-
-.demo-account {
-  padding: var(--spacing-sm);
-  background-color: var(--color-bg-primary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--border-radius-sm);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
-  font-family: var(--font-family-mono);
-  cursor: pointer;
-  transition: all var(--transition-base);
-}
-
-.demo-account:hover {
-  border-color: var(--color-text-accent);
-  color: var(--color-text-accent);
-}
-
-/* 动画 */
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 
-/* 响应式 */
+/* 错误提示 */
+.error-message {
+  color: #ff4444;
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+
+.login-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(255, 68, 68, 0.1);
+  border: 1px solid rgba(255, 68, 68, 0.3);
+  border-radius: 8px;
+  color: #ff6666;
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+}
+
+/* 演示账号 */
+.demo-info {
+  text-align: center;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.demo-text {
+  color: #8899aa;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
+
+.demo-account {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #8899aa;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.3s ease;
+}
+
+.demo-account:hover {
+  background: rgba(64, 128, 255, 0.1);
+  border-color: #4080ff;
+  color: #4080ff;
+}
+
+/* 过渡动画 */
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+
+/* 响应式设计 */
 @media (max-width: 480px) {
-  .login-content {
-    margin: var(--spacing-md);
-    padding: var(--spacing-lg);
+  .login-card {
+    margin: 10px;
+    padding: 30px 20px;
   }
 
-  .login-title {
-    font-size: var(--font-size-lg);
+  .logo-text {
+    font-size: 1.2rem;
   }
 
-  .form-options {
+  .dashboard-options {
+    gap: 8px;
+  }
+
+  .radio-label {
+    padding: 12px;
     flex-direction: column;
-    gap: var(--spacing-sm);
     align-items: flex-start;
+    gap: 8px;
+  }
+
+  .radio-desc {
+    margin-left: 0;
   }
 }
 </style>

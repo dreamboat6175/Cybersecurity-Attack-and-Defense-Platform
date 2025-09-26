@@ -1,23 +1,34 @@
-// src/router/index.js - 临时简化版本
+// src/router/index.js - 更新路由配置
 import { createRouter, createWebHistory } from 'vue-router'
 
 // 路由组件（懒加载）
 const Dashboard = () => import('@/views/Dashboard.vue')
+const CyberSecurityDashboard = () => import('@/views/CyberSecurityDashboard.vue')
 const Login = () => import('@/views/Login.vue')
 
-// 路由定义 - 暂时移除认证检查
+// 路由定义
 const routes = [
     {
         path: '/',
         name: 'root',
-        redirect: '/login' // 暂时直接跳转到登录页
+        redirect: '/login'
     },
     {
         path: '/dashboard',
         name: 'dashboard',
         component: Dashboard,
         meta: {
-            title: '仪表盘'
+            title: '仪表盘',
+            requiresAuth: true
+        }
+    },
+    {
+        path: '/cybersec',
+        name: 'cybersec',
+        component: CyberSecurityDashboard,
+        meta: {
+            title: '网络安全监控',
+            requiresAuth: true
         }
     },
     {
@@ -31,7 +42,7 @@ const routes = [
     {
         path: '/:pathMatch(.*)*',
         name: 'notFound',
-        redirect: '/login' // 404时重定向到登录页
+        redirect: '/login'
     }
 ]
 
@@ -48,7 +59,7 @@ const router = createRouter({
     }
 })
 
-// 简化的路由守卫 - 暂时只设置页面标题
+// 路由守卫
 router.beforeEach((to, from, next) => {
     // 设置页面标题
     const baseTitle = '网络安全攻防平台'
@@ -56,7 +67,16 @@ router.beforeEach((to, from, next) => {
 
     console.log(`🧭 路由导航: ${from.path} -> ${to.path}`)
 
-    // 直接放行，不做认证检查
+    // 简化的认证检查
+    if (to.meta.requiresAuth) {
+        const token = localStorage.getItem('auth_token')
+        if (!token) {
+            console.log('❌ 未授权访问，跳转到登录页')
+            next('/login')
+            return
+        }
+    }
+
     next()
 })
 
