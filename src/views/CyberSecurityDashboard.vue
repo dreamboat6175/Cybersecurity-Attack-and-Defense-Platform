@@ -1,9 +1,6 @@
-<!-- CyberSecurityDashboard.vue - 重构版本 -->
 <template>
   <div class="cybersec-dashboard">
-    <!-- 左侧面板 -->
     <div class="left-panel">
-      <!-- 目标列表 -->
       <div class="panel targets-panel">
         <div class="panel-header">
           <h3>TARGETS</h3>
@@ -20,7 +17,6 @@
         </div>
       </div>
 
-      <!-- 攻击方法 -->
       <div class="panel methods-panel">
         <div class="panel-header">
           <h3>ATTACK METHODS</h3>
@@ -41,31 +37,27 @@
       </div>
     </div>
 
-    <!-- 中间面板 -->
     <div class="center-panel">
-      <!-- 网络拓扑图 -->
       <div class="panel network-panel">
         <div class="panel-header">
           <h3>NETWORK MAP</h3>
         </div>
         <div class="panel-content">
           <div class="network-container">
-            <!-- 中心节点 -->
             <div class="center-node" :class="{ compromised: centerNodeStatus === 'compromised' }">
               <div class="node-icon">
-                <i class="fas fa-desktop"></i>
+                <i class="fas fa-laptop"></i>
               </div>
               <div class="node-label">{{ centerNode }}</div>
             </div>
 
-            <!-- 周围节点 -->
             <div
                 v-for="(node, index) in networkNodes"
                 :key="node.ip"
                 :class="['network-node', `position-${index + 1}`, { warning: node.status === 'warning' }]"
             >
               <div class="node-icon">
-                <i class="fas fa-desktop"></i>
+                <i class="fas fa-laptop"></i>
               </div>
               <div class="node-label">{{ node.ip }}</div>
               <div v-if="node.status === 'warning'" class="warning-indicator">
@@ -73,24 +65,21 @@
               </div>
             </div>
 
-            <!-- 连接线 -->
             <svg class="connections" viewBox="0 0 400 400">
-              <g v-for="(connection, index) in connections" :key="index">
-                <line
-                    :x1="connection.x1"
-                    :y1="connection.y1"
-                    :x2="connection.x2"
-                    :y2="connection.y2"
-                    :class="['connection-line', connection.type]"
-                    :stroke-dasharray="connection.type === 'attack' ? '5,5' : 'none'"
-                />
-              </g>
-            </svg>
+              <defs>
+                <filter id="glow">
+                  <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                  <feMerge>
+                    <feMergeNode in="coloredBlur"/>
+                    <feMergeNode in="SourceGraphic"/>
+                  </feMerge>
+                </filter>
+              </defs>
+              <line x1="200" y1="200" x2="200" y2="20" class="connection-line normal" />  <line x1="200" y1="200" x2="327" y2="73" class="connection-line normal" />  <line x1="200" y1="200" x2="380" y2="200" class="connection-line normal" /> <line x1="200" y1="200" x2="200" y2="380" class="connection-line normal" /> <line x1="200" y1="200" x2="73" y2="327" class="connection-line normal" />  <line x1="200" y1="200" x2="20" y2="200" class="connection-line normal" />   <line x1="200" y1="200" x2="73" y2="73" class="connection-line normal" />   <line x1="200" y1="200" x2="327" y2="327" class="connection-line attack" stroke-dasharray="5,5" filter="url(#glow)" /> </svg>
           </div>
         </div>
       </div>
 
-      <!-- 攻击日志 -->
       <div class="panel logs-panel">
         <div class="panel-header">
           <h3>ATTACK LOG</h3>
@@ -118,9 +107,7 @@
       </div>
     </div>
 
-    <!-- 右侧面板 -->
     <div class="right-panel">
-      <!-- 漏洞扫描 -->
       <div class="panel scan-panel">
         <div class="panel-header">
           <h3>VULNERABILITY SCAN</h3>
@@ -154,7 +141,6 @@
         </div>
       </div>
 
-      <!-- 攻击流量 -->
       <div class="panel traffic-panel">
         <div class="panel-header">
           <h3>ATTACK TRAFFIC</h3>
@@ -176,6 +162,23 @@
           </div>
         </div>
       </div>
+
+      <div class="panel description-panel">
+        <div class="panel-header">
+          <h3>DESCRIPTION</h3>
+        </div>
+        <div class="panel-content">
+          <div class="description-list">
+            <div
+                v-for="desc in attackDescriptions"
+                :key="desc.id"
+                class="description-item"
+            >
+              {{ desc.text }}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -187,9 +190,9 @@ export default {
   name: 'CyberSecurityDashboard',
   setup() {
     // 数据定义
-    const selectedTarget = ref('')
+    const selectedTarget = ref('192.168.1.10')
     const centerNode = ref('192.168.1.10')
-    const centerNodeStatus = ref('normal')
+    const centerNodeStatus = ref('compromised')
     const vulnerabilityScore = ref(87)
     const sigreScore = ref(92)
     const integrityScore = ref(85)
@@ -219,21 +222,13 @@ export default {
     // 网络节点
     const networkNodes = ref([
       { ip: '192.168.1.20', status: 'normal' },
-      { ip: '192.168.1.30', status: 'warning' },
-      { ip: '192.168.1.40', status: 'normal' },
+      { ip: '192.168.1.30', status: 'normal' },
+      { ip: '192.168.1.40', status: 'warning' },
       { ip: '192.168.1.50', status: 'normal' },
       { ip: '192.168.1.60', status: 'normal' },
-      { ip: '192.168.1.70', status: 'normal' }
-    ])
-
-    // 连接线
-    const connections = ref([
-      { x1: 200, y1: 200, x2: 200, y2: 100, type: 'normal' },
-      { x1: 200, y1: 200, x2: 300, y2: 150, type: 'attack' },
-      { x1: 200, y1: 200, x2: 300, y2: 250, type: 'normal' },
-      { x1: 200, y1: 200, x2: 200, y2: 300, type: 'normal' },
-      { x1: 200, y1: 200, x2: 100, y2: 250, type: 'normal' },
-      { x1: 200, y1: 200, x2: 100, y2: 150, type: 'normal' }
+      { ip: '192.168.1.70', status: 'normal' },
+      { ip: '192.168.1.80', status: 'normal' },
+      { ip: '192.168.1.90', status: 'normal' }
     ])
 
     // 攻击日志
@@ -242,6 +237,14 @@ export default {
       { id: 2, time: '10:32:49', target: '192.168.1.300', description: 'Command injection attempt' },
       { id: 3, time: '10:30:15', target: '192.168.1.20', description: 'Brute force attack' },
       { id: 4, time: '10:27:58', target: '192.168.1.10', description: 'Vulnerability scan' }
+    ])
+
+    // 攻击描述
+    const attackDescriptions = ref([
+      { id: 1, text: 'SQL injection attempt' },
+      { id: 2, text: 'Command injection attempt' },
+      { id: 3, text: 'Brute force attack' },
+      { id: 4, text: 'Vulnerability scan' }
     ])
 
     // 方法
@@ -253,7 +256,7 @@ export default {
       console.log('Selected method:', method)
     }
 
-    // 绘制漏洞扫描图表
+    // 绘制漏洞扫描图表 - 蛛网图样式
     const drawScanChart = () => {
       const canvas = document.querySelector('.scan-panel canvas')
       if (!canvas) return
@@ -261,34 +264,58 @@ export default {
       const ctx = canvas.getContext('2d')
       const centerX = canvas.width / 2
       const centerY = canvas.height / 2
-      const radius = 80
+      const maxRadius = 70
 
-      // 清空画布
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-      // 绘制背景圆环
-      ctx.beginPath()
-      ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI)
-      ctx.strokeStyle = '#334155'
-      ctx.lineWidth = 8
-      ctx.stroke()
+      const levels = 5
+      for (let level = 1; level <= levels; level++) {
+        const radius = (maxRadius / levels) * level
+        ctx.beginPath()
+        for (let i = 0; i < 6; i++) {
+          const angle = (i * Math.PI) / 3 - Math.PI / 2
+          const x = centerX + radius * Math.cos(angle)
+          const y = centerY + radius * Math.sin(angle)
+          if (i === 0) {
+            ctx.moveTo(x, y)
+          } else {
+            ctx.lineTo(x, y)
+          }
+        }
+        ctx.closePath()
+        ctx.strokeStyle = level === levels ? '#3b82f6' : '#334155'
+        ctx.lineWidth = level === levels ? 2 : 1
+        ctx.stroke()
+      }
 
-      // 绘制进度圆环
-      const progress = vulnerabilityScore.value / 100
-      ctx.beginPath()
-      ctx.arc(centerX, centerY, radius, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * progress)
-      ctx.strokeStyle = '#3b82f6'
-      ctx.lineWidth = 8
-      ctx.lineCap = 'round'
-      ctx.stroke()
+      for (let i = 0; i < 6; i++) {
+        const angle = (i * Math.PI) / 3 - Math.PI / 2
+        const x = centerX + maxRadius * Math.cos(angle)
+        const y = centerY + maxRadius * Math.sin(angle)
+        ctx.beginPath()
+        ctx.moveTo(centerX, centerY)
+        ctx.lineTo(x, y)
+        ctx.strokeStyle = '#334155'
+        ctx.lineWidth = 1
+        ctx.stroke()
+      }
 
-      // 绘制六边形
-      const hexRadius = 40
+      const scores = [
+        vulnerabilityScore.value,
+        sigreScore.value,
+        integrityScore.value,
+        availabilityScore.value,
+        vulnerabilityScore.value - 5,
+        sigreScore.value - 3
+      ]
+
       ctx.beginPath()
       for (let i = 0; i < 6; i++) {
-        const angle = (i * Math.PI) / 3
-        const x = centerX + hexRadius * Math.cos(angle)
-        const y = centerY + hexRadius * Math.sin(angle)
+        const angle = (i * Math.PI) / 3 - Math.PI / 2
+        const score = scores[i] || 80
+        const radius = (maxRadius * score) / 100
+        const x = centerX + radius * Math.cos(angle)
+        const y = centerY + radius * Math.sin(angle)
         if (i === 0) {
           ctx.moveTo(x, y)
         } else {
@@ -296,9 +323,30 @@ export default {
         }
       }
       ctx.closePath()
+
+      const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, maxRadius)
+      gradient.addColorStop(0, 'rgba(59, 130, 246, 0.3)')
+      gradient.addColorStop(1, 'rgba(59, 130, 246, 0.1)')
+      ctx.fillStyle = gradient
+      ctx.fill()
       ctx.strokeStyle = '#3b82f6'
       ctx.lineWidth = 2
       ctx.stroke()
+
+      for (let i = 0; i < 6; i++) {
+        const angle = (i * Math.PI) / 3 - Math.PI / 2
+        const score = scores[i] || 80
+        const radius = (maxRadius * score) / 100
+        const x = centerX + radius * Math.cos(angle)
+        const y = centerY + radius * Math.sin(angle)
+        ctx.beginPath()
+        ctx.arc(x, y, 3, 0, 2 * Math.PI)
+        ctx.fillStyle = '#3b82f6'
+        ctx.fill()
+        ctx.strokeStyle = '#ffffff'
+        ctx.lineWidth = 1
+        ctx.stroke()
+      }
     }
 
     // 绘制流量图表
@@ -309,11 +357,8 @@ export default {
       const ctx = canvas.getContext('2d')
       const width = canvas.width
       const height = canvas.height
-
-      // 清空画布
       ctx.clearRect(0, 0, width, height)
 
-      // 生成模拟数据
       const points = 50
       const data = []
       for (let i = 0; i < points; i++) {
@@ -322,31 +367,22 @@ export default {
         data.push(Math.max(0, baseValue + noise))
       }
 
-      // 绘制区域图
       ctx.beginPath()
       ctx.moveTo(0, height)
-
       data.forEach((value, index) => {
         const x = (index / (points - 1)) * width
         const y = height - (value / 200) * height
-        if (index === 0) {
-          ctx.lineTo(x, y)
-        } else {
-          ctx.lineTo(x, y)
-        }
+        ctx.lineTo(x, y)
       })
-
       ctx.lineTo(width, height)
       ctx.closePath()
 
-      // 填充渐变
       const gradient = ctx.createLinearGradient(0, 0, 0, height)
       gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)')
       gradient.addColorStop(1, 'rgba(59, 130, 246, 0.1)')
       ctx.fillStyle = gradient
       ctx.fill()
 
-      // 绘制线条
       ctx.beginPath()
       data.forEach((value, index) => {
         const x = (index / (points - 1)) * width
@@ -362,7 +398,6 @@ export default {
       ctx.stroke()
     }
 
-    // 生命周期
     onMounted(() => {
       nextTick(() => {
         drawScanChart()
@@ -383,8 +418,8 @@ export default {
       targets,
       attackMethods,
       networkNodes,
-      connections,
       attackLogs,
+      attackDescriptions,
       selectTarget,
       selectMethod
     }
@@ -395,7 +430,8 @@ export default {
 <style scoped>
 .cybersec-dashboard {
   display: grid;
-  grid-template-columns: 280px 1fr 300px;
+  /* <-- HORIZONTAL RATIO CHANGED FOR BETTER LAYOUT --> */
+  grid-template-columns: 0.8fr 1.5fr 0.9fr;
   gap: 16px;
   padding: 16px;
   height: 100vh;
@@ -446,7 +482,7 @@ export default {
 }
 
 .targets-panel {
-  flex: 0 0 200px;
+  flex: 1.5;
 }
 
 .methods-panel {
@@ -466,8 +502,8 @@ export default {
 
 .target-item:hover,
 .target-item.active {
-  background: rgba(59, 130, 246, 0.2);
-  border-left: 3px solid #3b82f6;
+  background: #3b82f6;
+  color: #fff;
 }
 
 .method-item {
@@ -512,8 +548,11 @@ export default {
 .network-container {
   position: relative;
   width: 100%;
-  height: 300px;
-  margin: 20px 0;
+  height: 100%;
+  min-height: 350px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .center-node {
@@ -521,9 +560,10 @@ export default {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 60px;
-  height: 60px;
-  background: linear-gradient(135deg, #ef4444, #dc2626);
+  width: 70px;
+  height: 70px;
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+  border: 2px solid #ef4444;
   border-radius: 50%;
   display: flex;
   flex-direction: column;
@@ -538,15 +578,16 @@ export default {
 }
 
 @keyframes pulse {
-  0%, 100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.5); }
-  50% { box-shadow: 0 0 30px rgba(239, 68, 68, 0.8); }
+  0%, 100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.5); border-color: #ef4444; }
+  50% { box-shadow: 0 0 35px rgba(239, 68, 68, 0.8); border-color: #f87171;}
 }
 
 .network-node {
   position: absolute;
-  width: 40px;
-  height: 40px;
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+  border: 2px solid #3b82f6;
   border-radius: 50%;
   display: flex;
   flex-direction: column;
@@ -556,20 +597,22 @@ export default {
 }
 
 .network-node.warning {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
+  border-color: #f59e0b;
   box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
 }
 
-.position-1 { top: 20%; left: 50%; transform: translateX(-50%); }
-.position-2 { top: 30%; right: 20%; }
-.position-3 { bottom: 30%; right: 20%; }
-.position-4 { bottom: 20%; left: 50%; transform: translateX(-50%); }
-.position-5 { bottom: 30%; left: 20%; }
-.position-6 { top: 30%; left: 20%; }
+.position-1 { top: 0; left: 50%; transform: translate(-50%, -50%); }
+.position-2 { top: 15%; right: 15%; transform: translate(50%, -50%); }
+.position-3 { top: 50%; right: 0; transform: translate(50%, -50%); }
+.position-4 { bottom: 15%; right: 15%; transform: translate(50%, 50%); }
+.position-5 { bottom: 0; left: 50%; transform: translate(-50%, 50%); }
+.position-6 { bottom: 15%; left: 15%; transform: translate(-50%, 50%); }
+.position-7 { top: 50%; left: 0; transform: translate(-50%, -50%); }
+.position-8 { top: 15%; left: 15%; transform: translate(-50%, -50%); }
 
 .node-icon {
   color: white;
-  font-size: 16px;
+  font-size: 24px;
 }
 
 .node-label {
@@ -579,7 +622,7 @@ export default {
   transform: translateX(-50%);
   font-size: 10px;
   white-space: nowrap;
-  margin-top: 4px;
+  margin-top: 8px;
   color: #94a3b8;
 }
 
@@ -608,17 +651,25 @@ export default {
 }
 
 .connection-line {
-  stroke-width: 2;
-  stroke: #475569;
+  stroke-width: 1;
+}
+
+.connection-line.normal {
+  stroke: #3b82f6;
+  opacity: 0.5;
 }
 
 .connection-line.attack {
-  stroke: #f59e0b;
-  animation: dash 2s linear infinite;
+  stroke: #ef4444; /* Changed to red */
+  stroke-width: 2;
+  opacity: 1;
+  animation: attackPulse 1.5s linear infinite;
 }
 
-@keyframes dash {
-  to { stroke-dashoffset: -10; }
+@keyframes attackPulse {
+  0% { opacity: 1; stroke-width: 2; }
+  50% { opacity: 0.6; stroke-width: 3; }
+  100% { opacity: 1; stroke-width: 2; }
 }
 
 /* 日志表格 */
@@ -670,7 +721,7 @@ export default {
 }
 
 .scan-panel {
-  flex: 2;
+  flex: 1.5;
 }
 
 .traffic-panel {
@@ -683,7 +734,8 @@ export default {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+  height: 200px;
 }
 
 .chart-overlay {
@@ -692,7 +744,7 @@ export default {
 }
 
 .score-display {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: bold;
   color: #3b82f6;
 }
@@ -770,10 +822,36 @@ export default {
   color: #94a3b8;
 }
 
+/* 攻击描述面板 */
+.description-panel {
+  flex: 1.2;
+}
+
+.description-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.description-item {
+  padding: 8px 12px;
+  background: rgba(30, 41, 59, 0.6);
+  border-radius: 4px;
+  font-size: 12px;
+  color: #94a3b8;
+  border-left: 3px solid #3b82f6;
+  transition: all 0.2s;
+}
+
+.description-item:hover {
+  background: rgba(30, 41, 59, 0.8);
+  color: #e2e8f0;
+}
+
 /* 响应式设计 */
 @media (max-width: 1400px) {
   .cybersec-dashboard {
-    grid-template-columns: 260px 1fr 280px;
+    grid-template-columns: 0.8fr 1.5fr 0.9fr;
   }
 }
 
