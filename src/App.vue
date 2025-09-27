@@ -1,98 +1,18 @@
-<!-- src/App.vue - 应用根组件 -->
+<!-- App.vue - 更新版本 -->
 <template>
-  <div id="app" class="app-container">
-    <!-- 路由视图 -->
-    <RouterView />
-
-    <!-- 全局加载指示器 -->
-    <Transition name="fade">
-      <div v-if="isGlobalLoading" class="global-loading">
-        <div class="loading-spinner"></div>
-        <p class="loading-text">{{ loadingText }}</p>
-      </div>
-    </Transition>
-
-    <!-- 全局错误提示 -->
-    <Transition name="slide-up">
-      <div v-if="globalError" class="global-error" @click="clearGlobalError">
-        <div class="error-content">
-          <span class="error-icon">⚠️</span>
-          <span class="error-message">{{ globalError }}</span>
-          <button class="error-close" @click.stop="clearGlobalError">×</button>
-        </div>
-      </div>
-    </Transition>
+  <div id="app">
+    <router-view />
   </div>
 </template>
 
-<script setup>
-import { ref, onMounted, onErrorCaptured } from 'vue'
-import { RouterView } from 'vue-router'
-
-// 全局状态
-const isGlobalLoading = ref(false)
-const loadingText = ref('加载中...')
-const globalError = ref('')
-
-// 设置全局加载状态
-function setGlobalLoading(loading, text = '加载中...') {
-  isGlobalLoading.value = loading
-  loadingText.value = text
+<script>
+export default {
+  name: 'App'
 }
-
-// 设置全局错误
-function setGlobalError(error) {
-  globalError.value = error
-
-  // 5秒后自动清除错误提示
-  setTimeout(() => {
-    globalError.value = ''
-  }, 5000)
-}
-
-// 清除全局错误
-function clearGlobalError() {
-  globalError.value = ''
-}
-
-// 错误捕获
-onErrorCaptured((error, instance, info) => {
-  console.error('🚨 Vue应用错误:', error)
-  console.error('📍 错误位置:', info)
-
-  setGlobalError(`应用错误: ${error.message}`)
-
-  // 返回false阻止错误继续传播
-  return false
-})
-
-// 监听未捕获的Promise错误
-window.addEventListener('unhandledrejection', (event) => {
-  console.error('🚨 未捕获的Promise错误:', event.reason)
-  setGlobalError(`网络错误: ${event.reason.message || '未知错误'}`)
-})
-
-// 组件挂载时的初始化
-onMounted(() => {
-  console.log('🎯 网络安全攻防平台已加载')
-
-  // 设置全局CSS变量
-  document.documentElement.style.setProperty('--app-primary-color', '#3b82f6')
-  document.documentElement.style.setProperty('--app-danger-color', '#ef4444')
-  document.documentElement.style.setProperty('--app-warning-color', '#f59e0b')
-  document.documentElement.style.setProperty('--app-success-color', '#22c55e')
-})
-
-// 暴露方法给子组件使用
-defineExpose({
-  setGlobalLoading,
-  setGlobalError,
-  clearGlobalError
-})
 </script>
 
 <style>
-/* 全局CSS重置 */
+/* 全局样式重置 */
 * {
   margin: 0;
   padding: 0;
@@ -103,24 +23,24 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-/* 应用容器 */
-.app-container {
+#app {
   width: 100vw;
   height: 100vh;
   background: #0a1628;
-  color: #ffffff;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  position: relative;
-  overflow: hidden;
+  color: #e2e8f0;
 }
 
-/* CSS变量定义 */
+/* 引入 Font Awesome 图标 */
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css');
+
+/* 全局CSS变量 */
 :root {
   --color-bg-primary: #0a1628;
-  --color-bg-secondary: rgba(15, 23, 42, 0.8);
-  --color-bg-tertiary: rgba(30, 41, 59, 0.6);
+  --color-bg-secondary: rgba(15, 23, 42, 0.9);
+  --color-bg-tertiary: rgba(30, 41, 59, 0.8);
 
   --color-border: #334155;
   --color-border-light: #475569;
@@ -144,137 +64,10 @@ html, body {
   --spacing-lg: 24px;
   --spacing-xl: 32px;
 
-  --font-size-xs: 11px;
-  --font-size-sm: 13px;
-  --font-size-base: 14px;
-  --font-size-lg: 16px;
-  --font-size-xl: 18px;
-
-  --font-family-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
-
-  --transition-base: all 0.3s ease;
-  --transition-fast: all 0.15s ease;
-}
-
-/* 全局加载指示器 */
-.global-loading {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(10, 22, 40, 0.9);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  backdrop-filter: blur(5px);
-}
-
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid rgba(59, 130, 246, 0.3);
-  border-top: 3px solid #3b82f6;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 16px;
-}
-
-.loading-text {
-  color: #94a3b8;
-  font-size: 14px;
-  text-align: center;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* 全局错误提示 */
-.global-error {
-  position: fixed;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10000;
-  cursor: pointer;
-}
-
-.error-content {
-  background: rgba(239, 68, 68, 0.9);
-  border: 1px solid #dc2626;
-  border-radius: 8px;
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(10px);
-  max-width: 500px;
-}
-
-.error-icon {
-  font-size: 16px;
-  flex-shrink: 0;
-}
-
-.error-message {
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.error-close {
-  background: none;
-  border: none;
-  color: #ffffff;
-  font-size: 18px;
-  cursor: pointer;
-  padding: 0;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: background-color 0.2s;
-  flex-shrink: 0;
-}
-
-.error-close:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-/* 过渡动画 */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-.slide-up-enter-active {
-  transition: all 0.3s ease;
-}
-
-.slide-up-leave-active {
-  transition: all 0.3s ease;
-}
-
-.slide-up-enter-from {
-  transform: translateX(-50%) translateY(-20px);
-  opacity: 0;
-}
-
-.slide-up-leave-to {
-  transform: translateX(-50%) translateY(-20px);
-  opacity: 0;
+  --transition-base: 0.2s ease;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
 /* 滚动条样式 */
@@ -284,49 +77,288 @@ html, body {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(30, 41, 59, 0.3);
-  border-radius: 3px;
+  background: var(--color-bg-primary);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(71, 85, 105, 0.6);
+  background: var(--color-border);
   border-radius: 3px;
+  transition: var(--transition-base);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(71, 85, 105, 0.8);
+  background: var(--color-text-accent);
 }
 
 /* Firefox滚动条 */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(71, 85, 105, 0.6) rgba(30, 41, 59, 0.3);
+  scrollbar-color: var(--color-border) var(--color-bg-primary);
 }
 
-/* 选择文本样式 */
+/* 文本选择样式 */
 ::selection {
-  background: rgba(59, 130, 246, 0.3);
-  color: #ffffff;
+  background-color: var(--color-text-accent);
+  color: var(--color-bg-primary);
 }
 
 /* 焦点样式 */
-*:focus {
-  outline: 2px solid rgba(59, 130, 246, 0.5);
+:focus-visible {
+  outline: 2px solid var(--color-text-accent);
   outline-offset: 2px;
 }
 
-/* 禁用用户选择（除了特定元素） */
-* {
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
+/* 按钮基础样式 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--border-radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition-base);
+  text-decoration: none;
 }
 
-input, textarea, [contenteditable] {
-  -webkit-user-select: text;
-  -moz-user-select: text;
-  -ms-user-select: text;
-  user-select: text;
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--color-info);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+.btn-danger {
+  background: var(--color-danger);
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--color-border);
+}
+
+/* 输入框样式 */
+.form-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  transition: var(--transition-base);
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--color-text-accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-input::placeholder {
+  color: var(--color-text-secondary);
+}
+
+/* 标签样式 */
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+/* 卡片样式 */
+.card {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-md);
+}
+
+/* 警告框样式 */
+.alert {
+  padding: 12px 16px;
+  border-radius: var(--border-radius-md);
+  margin-bottom: 16px;
+  border-left: 4px solid;
+}
+
+.alert-info {
+  background: rgba(59, 130, 246, 0.1);
+  border-left-color: var(--color-info);
+  color: #bfdbfe;
+}
+
+.alert-warning {
+  background: rgba(245, 158, 11, 0.1);
+  border-left-color: var(--color-warning);
+  color: #fde68a;
+}
+
+.alert-danger {
+  background: rgba(239, 68, 68, 0.1);
+  border-left-color: var(--color-danger);
+  color: #fecaca;
+}
+
+.alert-success {
+  background: rgba(34, 197, 94, 0.1);
+  border-left-color: var(--color-success);
+  color: #bbf7d0;
+}
+
+/* 加载动画 */
+.loading {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-border);
+  border-radius: 50%;
+  border-top-color: var(--color-text-accent);
+  animation: spin 0.8s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 工具类 */
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+
+.d-flex { display: flex; }
+.d-block { display: block; }
+.d-none { display: none; }
+
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.justify-end { justify-content: flex-end; }
+
+.align-center { align-items: center; }
+.align-start { align-items: flex-start; }
+.align-end { align-items: flex-end; }
+
+.flex-column { flex-direction: column; }
+.flex-wrap { flex-wrap: wrap; }
+
+.gap-sm { gap: var(--spacing-sm); }
+.gap-md { gap: var(--spacing-md); }
+.gap-lg { gap: var(--spacing-lg); }
+
+.mt-sm { margin-top: var(--spacing-sm); }
+.mt-md { margin-top: var(--spacing-md); }
+.mt-lg { margin-top: var(--spacing-lg); }
+
+.mb-sm { margin-bottom: var(--spacing-sm); }
+.mb-md { margin-bottom: var(--spacing-md); }
+.mb-lg { margin-bottom: var(--spacing-lg); }
+
+.p-sm { padding: var(--spacing-sm); }
+.p-md { padding: var(--spacing-md); }
+.p-lg { padding: var(--spacing-lg); }
+
+.text-primary { color: var(--color-text-primary); }
+.text-secondary { color: var(--color-text-secondary); }
+.text-accent { color: var(--color-text-accent); }
+.text-danger { color: var(--color-danger); }
+.text-warning { color: var(--color-warning); }
+.text-success { color: var(--color-success); }
+
+.bg-primary { background-color: var(--color-bg-primary); }
+.bg-secondary { background-color: var(--color-bg-secondary); }
+.bg-tertiary { background-color: var(--color-bg-tertiary); }
+
+.border { border: 1px solid var(--color-border); }
+.border-top { border-top: 1px solid var(--color-border); }
+.border-bottom { border-bottom: 1px solid var(--color-border); }
+
+.rounded { border-radius: var(--border-radius-md); }
+.rounded-sm { border-radius: var(--border-radius-sm); }
+.rounded-lg { border-radius: var(--border-radius-lg); }
+
+.shadow { box-shadow: var(--shadow-md); }
+.shadow-sm { box-shadow: var(--shadow-sm); }
+.shadow-lg { box-shadow: var(--shadow-lg); }
+
+/* 动画效果 */
+.fade-enter-active, .fade-leave-active {
+  transition: opacity var(--transition-base);
+}
+
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+
+.slide-enter-active, .slide-leave-active {
+  transition: transform var(--transition-base);
+}
+
+.slide-enter-from {
+  transform: translateX(-100%);
+}
+
+.slide-leave-to {
+  transform: translateX(100%);
+}
+
+/* 响应式断点 */
+@media (max-width: 1400px) {
+  :root {
+    --spacing-lg: 20px;
+    --spacing-xl: 28px;
+  }
+}
+
+@media (max-width: 1200px) {
+  :root {
+    --spacing-md: 14px;
+    --spacing-lg: 18px;
+    --spacing-xl: 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --spacing-sm: 6px;
+    --spacing-md: 12px;
+    --spacing-lg: 16px;
+    --spacing-xl: 20px;
+  }
+
+  .btn {
+    padding: 10px 18px;
+    font-size: 16px;
+  }
+
+  .form-input {
+    padding: 12px 14px;
+    font-size: 16px;
+  }
 }
 </style>
